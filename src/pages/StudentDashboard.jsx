@@ -26,6 +26,8 @@ import StudentAttendanceHistory from '../components/attendance/StudentAttendance
 import EventCard from '../components/events/EventCard';
 import EventDetailsModal from '../components/events/EventDetailsModal';
 import QRScannerModal from '../components/common/QRScannerModal';
+import LocationSharingWidget from '../components/dashboard/LocationSharingWidget';
+import StudentLiveLocationMap from '../components/monitoring/StudentLiveLocationMap';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 
@@ -81,7 +83,8 @@ export const StudentDashboard = () => {
   };
 
   const STUDENT_TABS = [
-    { id: 'overview', label: 'Student Dashboard', icon: LayoutDashboard },
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'location', label: 'My Location & Geofence', icon: MapPin },
     { id: 'attendance', label: 'My Attendance', icon: Award },
     { id: 'history', label: 'My Participation', icon: CheckCircle2 }
   ];
@@ -170,6 +173,40 @@ export const StudentDashboard = () => {
             />
           </div>
 
+          {/* Live Student GPS Telemetry & Interactive Geofence Map */}
+          {activeTab === 'overview' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg sm:text-xl font-extrabold text-navy-950 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-cyan-600" /> My Live Location & Campus Geofence
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Real-time GPS coordinate telemetry and event venue perimeter verification
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTabChange('location')}
+                  icon={ArrowRight}
+                  iconPosition="right"
+                >
+                  Full Geofence View
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-5">
+                  <LocationSharingWidget />
+                </div>
+                <div className="lg:col-span-7">
+                  <StudentLiveLocationMap />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Daily Student Notifications & Class Reminder */}
           {activeTab === 'overview' && (
             <div className="p-4 sm:p-5 rounded-3xl bg-white border border-slate-200/80 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
@@ -254,6 +291,22 @@ export const StudentDashboard = () => {
             categories={currentUser?.attendanceStats?.categoryBreakdown}
           />
         </>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SECTION: LIVE LOCATION & GEOFENCE TAB                                     */}
+      {/* ========================================================================= */}
+      {activeTab === 'location' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-5">
+              <LocationSharingWidget />
+            </div>
+            <div className="lg:col-span-7">
+              <StudentLiveLocationMap />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ========================================================================= */}

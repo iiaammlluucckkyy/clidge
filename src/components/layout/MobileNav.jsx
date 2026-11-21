@@ -38,6 +38,7 @@ export const MobileNav = ({ isOpen, onClose }) => {
     { to: '/profile', label: 'Faculty Profile', icon: UserCheck }
   ] : [
     { to: '/student-dashboard', label: 'Student Dashboard', icon: LayoutDashboard },
+    { to: '/student-dashboard?tab=location', label: 'My Live Location', icon: Compass },
     { to: '/student-dashboard?tab=attendance', label: 'My Attendance', icon: Award },
     { to: '/events', label: 'Campus Events', icon: CalendarCheck2 },
     { to: '/student-dashboard?tab=history', label: 'My Participation', icon: CheckCircle2 },

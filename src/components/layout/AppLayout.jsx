@@ -11,19 +11,15 @@ export const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
-      {/* Top Engineering Project Demonstration Banner */}
-      <div className="bg-gradient-to-r from-navy-950 via-navy-900 to-navy-950 text-white text-xs px-4 py-2 border-b border-navy-800/80 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+      {/* Official Institution Header Bar */}
+      <div className="bg-navy-950 text-white text-xs px-4 sm:px-6 py-2 border-b border-navy-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-          <span className="font-bold text-cyan-300">CLIDGE:</span>
-          <span className="text-slate-200 hidden sm:inline">Smart Student Location Tracking & Campus Event Participation Monitoring System</span>
-          <span className="text-slate-400 text-[11px]">(Demonstration Mode with Realistic College Data)</span>
+          <span className="font-bold text-cyan-400">Muthayammal Engineering College (Autonomous)</span>
+          <span className="text-slate-400 hidden sm:inline">• Department of Computer Science & Engineering</span>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-cyan-200/90 font-mono">
-          <span className="hidden md:inline">Muthayammal Engineering College</span>
-          <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 px-2 py-0.5 rounded font-sans font-semibold">
-            v1.0 Live Demo
-          </span>
+        <div className="flex items-center gap-2 text-[11px] text-slate-300">
+          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>Campus Geofence System Active</span>
         </div>
       </div>
 

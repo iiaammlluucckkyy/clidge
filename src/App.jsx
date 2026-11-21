@@ -26,11 +26,11 @@ export function App() {
           </ProtectedRoute>
         }
       >
-        {/* Student Dashboard - Available to Students */}
+        {/* Student Dashboard - Available to Students Only */}
         <Route
           path="/student-dashboard"
           element={
-            <ProtectedRoute allowedRoles={['student', 'teacher']}>
+            <ProtectedRoute allowedRoles={['student']}>
               <StudentDashboard />
             </ProtectedRoute>
           }

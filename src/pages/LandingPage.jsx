@@ -82,17 +82,11 @@ export const LandingPage = () => {
 
           {/* Nav Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <a
-              href="#how-it-works"
-              className="text-xs font-semibold text-slate-600 hover:text-navy-950 px-3 py-2 rounded-xl transition-colors hidden md:block"
-            >
-              How It Works
-            </a>
             <Link
               to="/events"
               className="text-xs font-semibold text-slate-600 hover:text-navy-950 px-3 py-2 rounded-xl transition-colors hidden sm:block"
             >
-              Browse Events
+              Campus Events
             </Link>
 
             {isAuthenticated ? (
@@ -109,24 +103,17 @@ export const LandingPage = () => {
               <>
                 <button
                   onClick={handleStudentLogin}
-                  className="text-xs font-bold text-navy-900 hover:text-cyan-600 px-3 py-2 rounded-xl transition-colors hidden sm:block"
+                  className="text-xs font-bold text-slate-700 hover:text-navy-950 px-3 py-2 rounded-xl transition-colors"
                 >
-                  Student Login
-                </button>
-                <button
-                  onClick={handleTeacherLogin}
-                  className="text-xs font-bold text-navy-900 hover:text-cyan-600 px-3 py-2 rounded-xl transition-colors hidden sm:block"
-                >
-                  Faculty Login
+                  Student Sign In
                 </button>
                 <Button
                   variant="cyan"
                   size="sm"
-                  onClick={handleGetStarted}
-                  icon={ArrowRight}
-                  iconPosition="right"
+                  onClick={handleTeacherLogin}
+                  icon={Users}
                 >
-                  Get Started
+                  Faculty Portal
                 </Button>
               </>
             )}
@@ -135,208 +122,171 @@ export const LandingPage = () => {
       </header>
 
       {/* ============================================================ */}
-      {/* 2. HERO SECTION (Front When We Open - Simple, Clean & Clear)  */}
+      {/* 2. HERO SECTION - Simple, Clean & Professional Institutional   */}
       {/* ============================================================ */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-navy-950 via-navy-900 to-navy-950 text-white pt-12 pb-20 px-4 sm:px-8">
-        {/* Ambient Glows */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[360px] bg-cyan-500/15 rounded-full blur-[130px] pointer-events-none"></div>
-        <div className="absolute top-1/2 left-1/4 w-[350px] h-[350px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none"></div>
-
-        <div className="max-w-5xl mx-auto text-center relative z-10 space-y-7">
-          {/* College Tag */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-semibold shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Muthayammal Engineering College • Smart Campus System</span>
+      <section className="bg-navy-950 text-white pt-10 pb-16 px-4 sm:px-8 border-b border-navy-800">
+        <div className="max-w-5xl mx-auto text-center space-y-6">
+          {/* Institutional Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-semibold">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Muthayammal Engineering College (Autonomous) • Rasipuram</span>
           </div>
 
-          {/* Prominent Official Logo Showcase */}
+          {/* Official Logo Showcase */}
           <div className="flex flex-col items-center justify-center pt-1">
-            <div className="relative group">
-              <div className="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-cyan-400 to-blue-600 opacity-40 blur-xl group-hover:opacity-70 transition duration-500"></div>
-              <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-white p-3 shadow-2xl border-2 border-white/90 flex items-center justify-center transform group-hover:scale-105 transition-all duration-300">
-                <img
-                  src="/logo.png"
-                  alt="CLidge Official Logo"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white p-2.5 shadow-xl border border-white/90 flex items-center justify-center">
+              <img
+                src="/logo.png"
+                alt="CLIDGE Official Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div className="mt-3 flex items-center gap-2">
-              <span className="text-2xl sm:text-3xl font-extrabold tracking-wider text-white">CLidge</span>
+              <span className="text-2xl sm:text-3xl font-extrabold tracking-wider text-white">CLIDGE</span>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 font-medium">
-                Campus Location & Attendance
+                Campus Location & Attendance System
               </span>
             </div>
           </div>
 
-          {/* Punchy Headline - Understood in 1 Glance */}
-          <div className="space-y-3">
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
-              Smart Campus Presence & <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Live Attendance</span>
+          {/* Clear Executive Headline */}
+          <div className="space-y-2 max-w-3xl mx-auto">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
+              Smart Student Location Tracking & <span className="text-cyan-400">Campus Event Attendance</span>
             </h1>
 
-            <p className="text-sm sm:text-base lg:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
-              Verify student presence inside campus halls with high-precision GPS geofencing and instant QR code check-ins. Proxy-free, voluntary, and zero manual paperwork.
+            <p className="text-xs sm:text-sm lg:text-base text-slate-300 leading-relaxed font-normal">
+              High-precision GNSS geofencing and dynamic QR code verification for institutional events, seminar halls, and academic sessions. Department of Computer Science & Engineering.
             </p>
           </div>
 
           {/* ============================================================ */}
-          {/* TWO CLEAR PORTALS: Student vs Faculty (Zero Confusion!)       */}
+          {/* TWO DIRECT INSTITUTIONAL PORTALS                             */}
           {/* ============================================================ */}
-          <div className="pt-2 grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto text-left">
-            {/* Student Portal Card */}
-            <div className="bg-gradient-to-b from-navy-900/90 to-navy-950/90 rounded-3xl p-6 sm:p-7 border border-cyan-500/40 shadow-xl hover:border-cyan-400 transition-all group flex flex-col justify-between">
+          <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto text-left">
+            {/* Faculty / Coordinator Portal Card */}
+            <div className="bg-navy-900 rounded-3xl p-6 sm:p-7 border-2 border-cyan-500/60 shadow-xl flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
-                    <GraduationCap className="w-6 h-6 stroke-[2.2]" />
+                    <Users className="w-6 h-6 stroke-[2.2]" />
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                    Student Portal
+                  <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    Faculty Portal
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyan-300 transition-colors">
-                  I am a Student
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2">
+                  Faculty & Event Coordinators
                 </h3>
 
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                  Join campus events, share voluntary GPS location inside seminar halls, and scan dynamic QR codes to mark verified attendance.
+                  Create events, configure venue geofence perimeters, monitor student locations on live radar, and export attendance records.
                 </p>
 
                 <ul className="space-y-2 mb-6 text-xs text-slate-300">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    <span>One-tap event check-in & check-out</span>
+                    <span>Real-time student geofence telemetry map</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    <span>Automatic venue geofence verification</span>
+                    <span>Dynamic event QR code generator</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    <span>100% voluntary session-only GPS</span>
+                    <span>Official CSV attendance report export</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="pt-2 space-y-2.5">
+              <div className="pt-2">
                 <Button
                   variant="cyan"
                   size="md"
                   className="w-full justify-center shadow-glow-cyan font-bold"
-                  onClick={handleStudentLogin}
+                  onClick={handleTeacherLogin}
                   icon={ArrowRight}
                   iconPosition="right"
                 >
-                  Enter Student Portal
+                  Enter Faculty Portal
                 </Button>
+              </div>
+            </div>
+
+            {/* Student Portal Card */}
+            <div className="bg-navy-900 rounded-3xl p-6 sm:p-7 border border-navy-800 shadow-xl flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center">
+                    <GraduationCap className="w-6 h-6 stroke-[2.2]" />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    Student Portal
+                  </span>
+                </div>
+
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2">
+                  Students & Attendees
+                </h3>
+
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
+                  Join approved sessions, verify voluntary GPS presence inside event halls, view live coordinates, and scan attendance QR codes.
+                </p>
+
+                <ul className="space-y-2 mb-6 text-xs text-slate-300">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Instant event registration & participation</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Live GPS coordinates & venue perimeter status</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Session-only voluntary location sharing</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-2 space-y-2">
+                <button
+                  onClick={handleStudentLogin}
+                  className="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-white/10 hover:bg-white/20 text-white border border-white/25 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>Enter Student Portal</span>
+                  <ArrowRight className="w-4 h-4 text-cyan-400" />
+                </button>
                 <div className="text-center">
                   <Link
                     to="/register"
                     className="text-xs text-cyan-300/80 hover:text-cyan-200 underline-offset-4 hover:underline transition-colors"
                   >
-                    New student? Create an account →
+                    New student? Register here →
                   </Link>
                 </div>
               </div>
             </div>
-
-            {/* Faculty / Coordinator Portal Card */}
-            <div className="bg-gradient-to-b from-navy-900/90 to-navy-950/90 rounded-3xl p-6 sm:p-7 border border-blue-500/30 shadow-xl hover:border-blue-400 transition-all group flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center">
-                    <Users className="w-6 h-6 stroke-[2.2]" />
-                  </div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                    Faculty Portal
-                  </span>
-                </div>
-
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-300 transition-colors">
-                  I am a Faculty / Coordinator
-                </h3>
-
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                  Create campus events, define venue geofence perimeters, monitor student locations on live radar, and export attendance reports.
-                </p>
-
-                <ul className="space-y-2 mb-6 text-xs text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    <span>Live interactive student radar map</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    <span>Dynamic encrypted QR code generator</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    <span>One-click CSV attendance report export</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="pt-2 space-y-2.5">
-                <button
-                  onClick={handleTeacherLogin}
-                  className="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-white/10 hover:bg-white/20 text-white border border-white/25 transition-all flex items-center justify-center gap-2 group-hover:border-blue-400/50"
-                >
-                  <span>Enter Faculty Portal</span>
-                  <ArrowRight className="w-4 h-4 text-blue-400 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <div className="text-center">
-                  <span className="text-xs text-slate-400">
-                    Protected institutional faculty login
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Demo Helpers for Fast Evaluation */}
-          <div className="pt-3 max-w-xl mx-auto flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
-            <span className="inline-flex items-center gap-1 text-cyan-300 font-semibold">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> One-Click Demo:
-            </span>
-            <button
-              onClick={() => navigate('/login?portal=student&demo=student')}
-              className="px-3 py-1 rounded-lg bg-navy-800/80 hover:bg-navy-700 text-cyan-200 border border-cyan-500/30 transition-colors"
-            >
-              Demo Student
-            </button>
-            <button
-              onClick={() => navigate('/login?portal=teacher&demo=teacher')}
-              className="px-3 py-1 rounded-lg bg-navy-800/80 hover:bg-navy-700 text-blue-200 border border-blue-500/30 transition-colors"
-            >
-              Demo Faculty
-            </button>
-            <Link
-              to="/events"
-              className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition-colors"
-            >
-              Browse Events →
-            </Link>
           </div>
 
           {/* Highlights Ribbon */}
-          <div className="pt-8 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
-            <div className="p-3.5 rounded-2xl bg-navy-900/60 border border-navy-800 text-left">
-              <span className="text-xl font-extrabold text-cyan-400 block">±4.2m</span>
-              <p className="text-[11px] text-slate-400">Hall-Level Geofence</p>
+          <div className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
+            <div className="p-3.5 rounded-2xl bg-navy-900 border border-navy-800 text-left">
+              <span className="text-lg font-extrabold text-cyan-400 block">±4.2m GNSS</span>
+              <p className="text-[11px] text-slate-400">Hall-Level Boundary Precision</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-navy-900/60 border border-navy-800 text-left">
-              <span className="text-xl font-extrabold text-white block">Real-Time</span>
-              <p className="text-[11px] text-slate-400">Live Campus Radar</p>
+            <div className="p-3.5 rounded-2xl bg-navy-900 border border-navy-800 text-left">
+              <span className="text-lg font-extrabold text-white block">Real-Time</span>
+              <p className="text-[11px] text-slate-400">Faculty Telemetry Radar</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-navy-900/60 border border-navy-800 text-left">
-              <span className="text-xl font-extrabold text-cyan-400 block">Dual Check</span>
-              <p className="text-[11px] text-slate-400">GPS + Dynamic QR Code</p>
+            <div className="p-3.5 rounded-2xl bg-navy-900 border border-navy-800 text-left">
+              <span className="text-lg font-extrabold text-cyan-400 block">Dual Verify</span>
+              <p className="text-[11px] text-slate-400">GPS + Dynamic QR Token</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-navy-900/60 border border-navy-800 text-left">
-              <span className="text-xl font-extrabold text-white block">100% Privacy</span>
-              <p className="text-[11px] text-slate-400">Session-Bound Location</p>
+            <div className="p-3.5 rounded-2xl bg-navy-900 border border-navy-800 text-left">
+              <span className="text-lg font-extrabold text-emerald-400 block">100% Privacy</span>
+              <p className="text-[11px] text-slate-400">Session-Bound Location Only</p>
             </div>
           </div>
         </div>

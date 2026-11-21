@@ -165,7 +165,7 @@ export const Navbar = ({ onMobileMenuToggle }) => {
                     className="flex items-center gap-2.5 px-4 py-2 text-slate-700 hover:bg-slate-50 hover:text-cyan-600 transition-colors"
                   >
                     <Navigation className="w-4 h-4 text-slate-400" />
-                    <span>My Dashboard</span>
+                    <span>{currentRole === 'teacher' ? 'Faculty Dashboard' : 'Student Dashboard'}</span>
                   </Link>
                 </div>
                 <div className="pt-1 border-t border-slate-100">

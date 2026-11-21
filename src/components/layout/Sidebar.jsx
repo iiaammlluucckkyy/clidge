@@ -66,6 +66,12 @@ export const Sidebar = () => {
       icon: LayoutDashboard
     },
     {
+      to: '/student-dashboard?tab=location',
+      label: 'My Live Location',
+      icon: Compass,
+      badge: 'GPS'
+    },
+    {
       to: '/student-dashboard?tab=attendance',
       label: 'My Attendance',
       icon: Award
