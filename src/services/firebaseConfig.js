@@ -5,34 +5,34 @@
  * 1. Create a Firebase project at https://console.firebase.google.com/
  * 2. Enable Firebase Authentication (Email/Password & Google)
  * 3. Enable Cloud Firestore
- * 4. Add the keys below to your .env file:
- *    VITE_FIREBASE_API_KEY=...
- *    VITE_FIREBASE_AUTH_DOMAIN=...
- *    VITE_FIREBASE_PROJECT_ID=...
- *    VITE_FIREBASE_STORAGE_BUCKET=...
- *    VITE_FIREBASE_MESSAGING_SENDER_ID=...
- *    VITE_FIREBASE_APP_ID=...
+ * 4. Add the keys in your .env file
  */
 
+const env = (typeof import.meta !== 'undefined' && import.meta.env)
+  ? import.meta.env
+  : (typeof process !== 'undefined' && process.env ? process.env : {});
+
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSy_MOCK_DEMO_KEY_MUTHAYAMMAL",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "clidge-campus.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "clidge-campus",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "clidge-campus.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "731622000000",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:731622000000:web:clidgeabc123"
+  apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSy_MOCK_DEMO_KEY_MUTHAYAMMAL",
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "clidge-campus.firebaseapp.com",
+  projectId: env.VITE_FIREBASE_PROJECT_ID || "clidge-campus",
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "clidge-campus.appspot.com",
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "731622000000",
+  appId: env.VITE_FIREBASE_APP_ID || "1:731622000000:web:clidgeabc123"
 };
 
 /**
  * Cloud Firestore Collection Schema Blueprint:
  * 
  * 1. collections/users/{userId}
+ *    - uid: string
  *    - name: string
- *    - regNumber: string (e.g. 731622CSR045)
- *    - role: "student" | "teacher" | "coordinator"
+ *    - email: string
+ *    - registrationNumber: string (e.g. 731622CSR045)
  *    - department: string
- *    - phone: string
- *    - createdAt: timestamp
+ *    - year: string
+ *    - role: "student" | "teacher"
+ *    - createdAt: timestamp / string
  * 
  * 2. collections/events/{eventId}
  *    - title: string
@@ -63,7 +63,7 @@ export const firebaseConfig = {
 
 export const isFirebaseConfigured = () => {
   return Boolean(
-    import.meta.env.VITE_FIREBASE_API_KEY && 
-    import.meta.env.VITE_FIREBASE_API_KEY !== "AIzaSy_MOCK_DEMO_KEY_MUTHAYAMMAL"
+    env.VITE_FIREBASE_API_KEY && 
+    !env.VITE_FIREBASE_API_KEY.includes('MOCK_DEMO')
   );
 };

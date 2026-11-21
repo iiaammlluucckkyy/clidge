@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && getUserData().role == 'teacher';
+    }
+
+    // ===============================================================
+    // USERS COLLECTION RULES
+    // ===============================================================
+    match /users/{userId} {
+      // Students can only view their own user profile. Teachers can view student profiles.
+      allow read: if isOwner(userId) || isTeacher();
+
+      allow create: if isOwner(userId)
+                    && request.resource.data.keys().hasAll(['uid', 'name', 'email', 'registrationNumber', 'department', 'year', 'role', 'createdAt'])
+                    && request.resource.data.uid == userId
+                    && request.resource.data.role == 'student';
+
+      allow update: if isOwner(userId)
+                    && request.resource.data.role == resource.data.role;
+
+      allow delete: if false;
+    }
+
+    // ===============================================================
+    // EVENTS COLLECTION RULES
+    // ===============================================================
+    match /events/{eventId} {
+      // Authenticated users (students & teachers) can read events
+      allow read: if isAuthenticated();
+
+      // Only verified teachers can create events, and teacherId must match authenticated uid
+      allow create: if isTeacher()
+                    && request.resource.data.teacherId == request.auth.uid
+                    && request.resource.data.keys().hasAll([
+                      'title', 'description', 'venue', 'date', 'startTime', 'endTime',
+                      'latitude', 'longitude', 'radius', 'teacherId', 'status', 'createdAt'
+                    ]);
+
+      // Only the teacher who created the event can edit, cancel or end it
+      allow update: if isTeacher()
+                    && resource.data.teacherId == request.auth.uid;
+
+      // Only the owning teacher can delete an event
+      allow delete: if isTeacher()
+                    && resource.data.teacherId == request.auth.uid;
+
+      // Live location updates per student within an event
+      match /live_locations/{studentId} {
+        // Students can only write their own GPS coordinates
+        allow write: if isOwner(studentId);
+        // Privacy protection: Students can only read their own location. Teachers can read participants.
+        allow read: if isOwner(studentId) || isTeacher();
+      }
+    }
+
+    // ===============================================================
+    // EVENT PARTICIPANTS COLLECTION RULES
+    // ===============================================================
+    match /eventParticipants/{participantId} {
+      // Authenticated users can view participants
+      allow read: if isAuthenticated();
+
+      // Students can join an event:
+      // - Must be authenticated
+      // - studentId must match authenticated uid
+      // - sharingConsent must be true
+      // - Status starts as 'Active' or 'Pending'
+      allow create: if isAuthenticated()
+                    && request.resource.data.studentId == request.auth.uid
+                    && request.resource.data.sharingConsent == true
+                    && request.resource.data.keys().hasAll([
+                      'eventId', 'studentId', 'joinedAt', 'sharingConsent', 'sharingStatus'
+                    ]);
+
+      // Student can update their own participation (e.g. leave before start or pause sharing)
+      // Owning teacher can update participant sharing status (e.g. when ending event)
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.studentId || isTeacher()
+      );
+
+      // Student can remove their registration before event starts
+      allow delete: if isAuthenticated()
+                    && request.auth.uid == resource.data.studentId;
+    }
+
+    // ===============================================================
+    // ATTENDANCE RECORDS RULES
+    // ===============================================================
+    match /attendanceRecords/{recordId} {
+      // Privacy protection: Student can only view their own attendance records.
+      // Teachers can view event attendance.
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid || isTeacher()
+      );
+      allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isTeacher();
+    }
+
+    match /attendance_records/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid || isTeacher()
+      );
+      allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isTeacher();
+    }
+  }
+}

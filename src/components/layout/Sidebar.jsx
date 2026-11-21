@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   CalendarCheck2,
@@ -7,24 +7,68 @@ import {
   UserCheck,
   MapPin,
   Shield,
-  Layers,
-  ArrowRightLeft,
-  Sparkles,
-  ExternalLink
+  LogOut,
+  GraduationCap,
+  Award,
+  CheckCircle2,
+  FileSpreadsheet,
+  Compass
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useLocation } from '../../context/LocationContext';
 
 export const Sidebar = () => {
-  const { currentRole, switchRole } = useAuth();
-  const { isSharing, geofenceStatus } = useLocation();
+  const { currentRole, currentUser, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const navLinks = [
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  // Dedicated navigation links separated strictly by role
+  const navLinks = currentRole === 'teacher' ? [
     {
-      to: currentRole === 'student' ? '/student-dashboard' : '/teacher-dashboard',
-      label: currentRole === 'student' ? 'Student Dashboard' : 'Faculty Dashboard',
-      icon: LayoutDashboard,
-      highlight: true
+      to: '/teacher-dashboard',
+      label: 'Faculty Dashboard',
+      icon: LayoutDashboard
+    },
+    {
+      to: '/teacher-dashboard?tab=tracking',
+      label: 'Live Student Tracking',
+      icon: Compass,
+      badge: 'Live'
+    },
+    {
+      to: '/teacher-dashboard?tab=events',
+      label: 'Event Management',
+      icon: CalendarCheck2
+    },
+    {
+      to: '/teacher-dashboard?tab=reports',
+      label: 'Attendance & Reports',
+      icon: FileSpreadsheet
+    },
+    {
+      to: '/teacher-dashboard?tab=students',
+      label: 'Student Information',
+      icon: Users
+    },
+    {
+      to: '/profile',
+      label: 'Faculty Profile',
+      icon: UserCheck
+    }
+  ] : [
+    {
+      to: '/student-dashboard',
+      label: 'Student Dashboard',
+      icon: LayoutDashboard
+    },
+    {
+      to: '/student-dashboard?tab=attendance',
+      label: 'My Attendance',
+      icon: Award
     },
     {
       to: '/events',
@@ -33,35 +77,40 @@ export const Sidebar = () => {
       badge: '5 Active'
     },
     {
-      to: '/teacher-dashboard',
-      label: 'Live Student Tracking',
-      icon: Users,
-      badge: currentRole === 'teacher' ? 'Live' : null,
-      teacherOnly: false
+      to: '/student-dashboard?tab=history',
+      label: 'My Participation',
+      icon: CheckCircle2
     },
     {
       to: '/profile',
-      label: 'Profile & Credentials',
+      label: 'My Profile & ID',
       icon: UserCheck
     }
   ];
+
+  // Helper to determine if link is active including query params
+  const isLinkActive = (to) => {
+    const fullPath = location.pathname + location.search;
+    if (to.includes('?')) {
+      return fullPath === to;
+    }
+    return location.pathname === to && (!location.search || location.search === '?tab=overview');
+  };
 
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-navy-950 text-white min-h-screen border-r border-navy-800/80 sticky top-0 h-screen select-none z-40">
       {/* Brand Header */}
       <div className="p-6 border-b border-navy-800/80 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-glow-cyan p-0.5 overflow-hidden">
-            {/* Logo image if exists, else branded icon */}
+          <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-glow-cyan overflow-hidden border border-cyan-500/30">
             <img
-              src="/logo.jpeg"
+              src="/logo.png"
               alt="Clidge Logo"
-              className="w-full h-full object-cover rounded-[10px]"
+              className="w-full h-full object-contain"
               onError={(e) => {
                 e.target.style.display = 'none';
               }}
             />
-            <MapPin className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
@@ -82,87 +131,87 @@ export const Sidebar = () => {
       {/* Navigation Links */}
       <div className="flex-1 px-4 py-5 space-y-1.5 overflow-y-auto">
         <div className="px-3 pb-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-          Navigation Menu
+          {currentRole === 'teacher' ? 'Faculty Management' : 'Student Portal'}
         </div>
 
-        {navLinks.map((item) => (
-          <NavLink
-            key={item.to + item.label}
-            to={item.to}
-            className={({ isActive }) =>
-              `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 group ${
-                isActive
+        {navLinks.map((item) => {
+          const active = isLinkActive(item.to);
+          return (
+            <Link
+              key={item.to + item.label}
+              to={item.to}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 group ${
+                active
                   ? 'bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 text-cyan-300 border-l-4 border-cyan-400 shadow-sm'
                   : 'text-slate-300 hover:text-white hover:bg-navy-900/80'
-              }`
-            }
-          >
-            <div className="flex items-center gap-3">
-              <item.icon className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-              <span>{item.label}</span>
-            </div>
-            {item.badge && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                {item.badge}
-              </span>
-            )}
-          </NavLink>
-        ))}
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <item.icon className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <span>{item.label}</span>
+              </div>
+              {item.badge && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  {item.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
 
+        {/* User Role Card */}
         <div className="pt-6 px-3 pb-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-          Demonstration Perspective
+          Session Identity
         </div>
 
-        {/* Perspective Quick Switch Card */}
         <div className="p-3.5 rounded-2xl bg-navy-900/90 border border-navy-800 text-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-slate-400">Current Role:</span>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center font-bold text-xs">
+              {currentUser?.name?.charAt(0) || 'U'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="font-bold text-white truncate text-[11px]">{currentUser?.name}</p>
+              <p className="font-mono text-[10px] text-cyan-400 truncate">{currentUser?.registrationNumber || currentUser?.regNumber}</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t border-navy-800 text-[10px]">
+            <span className="text-slate-400">Role:</span>
             <span className="capitalize font-bold text-cyan-300 flex items-center gap-1">
-              <Shield className="w-3.5 h-3.5 text-cyan-400" /> {currentRole}
+              {currentRole === 'teacher' ? <Shield className="w-3 h-3 text-cyan-400" /> : <GraduationCap className="w-3 h-3 text-cyan-400" />}
+              {currentRole}
             </span>
           </div>
-
-          <button
-            onClick={() => switchRole(currentRole === 'student' ? 'teacher' : 'student')}
-            className="w-full mt-1 py-2 px-3 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors text-xs"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span>Switch to {currentRole === 'student' ? 'Teacher' : 'Student'}</span>
-          </button>
         </div>
 
-        {/* Live GPS Health Card */}
-        <div className="mt-3 p-3.5 rounded-2xl bg-navy-900/50 border border-navy-800/80 text-[11px] space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400">Voluntary GPS:</span>
-            <span className={`font-semibold ${isSharing ? 'text-emerald-400' : 'text-slate-400'}`}>
-              {isSharing ? 'Active (Live)' : 'Paused'}
-            </span>
+        {/* Student Attendance Standing Card */}
+        {currentRole === 'student' && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-navy-900/50 border border-navy-800/80 text-[11px] space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Attendance:</span>
+              <span className="font-semibold text-emerald-400">
+                {currentUser?.attendanceStats?.overallPercentage || '94.2%'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Status:</span>
+              <span className="font-semibold text-cyan-300">
+                Ready to Scan
+              </span>
+            </div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400">Geofence Status:</span>
-            <span className="font-semibold text-cyan-300 truncate max-w-[110px] text-right">
-              {geofenceStatus}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-slate-400">
-            <span>GNSS Accuracy:</span>
-            <span className="font-mono text-slate-300">±4.2m</span>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Footer / Tech Spec Info */}
-      <div className="p-4 border-t border-navy-800/80 text-center">
-        <Link
-          to="/"
-          className="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-cyan-300 transition-colors py-1"
+      {/* Footer Sign Out */}
+      <div className="p-4 border-t border-navy-800/80 space-y-2 text-center">
+        <button
+          onClick={handleLogout}
+          className="w-full py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors text-xs"
         >
-          <Layers className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Landing & Architecture</span>
-          <ExternalLink className="w-3 h-3 ml-0.5" />
-        </Link>
-        <p className="text-[10px] text-slate-400 mt-1">Clidge Autonomous Campus v1.0</p>
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Sign Out</span>
+        </button>
+        <p className="text-[10px] text-slate-500">CLIDGE Campus Auth v2.0</p>
       </div>
     </aside>
   );

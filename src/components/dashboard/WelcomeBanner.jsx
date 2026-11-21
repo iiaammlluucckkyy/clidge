@@ -11,58 +11,56 @@ export const WelcomeBanner = ({
   onActionClick
 }) => {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 rounded-3xl p-6 sm:p-8 text-white shadow-glow-navy border border-navy-800/80 mb-8">
+    <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 rounded-3xl p-6 sm:p-7 text-white shadow-glow-navy border border-navy-800/80 mb-6">
       {/* Subtle Cyan Ambient Accents */}
       <div className="absolute -top-24 -right-24 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-blue-600/10 rounded-full blur-2xl pointer-events-none"></div>
 
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div className="space-y-2 max-w-2xl">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[11px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-              {role === 'student' ? 'Student Portal' : 'Faculty Monitoring Portal'}
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+              {role === 'student' ? 'Student Portal' : 'Faculty Portal'}
             </span>
             <Badge variant="Inside Venue" size="sm">
-              Live Session Active
+              Live Session
             </Badge>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-cyan-100">{user?.name}</span>!
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight text-white">
+            Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-cyan-100">{user?.name}</span>
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-300 pt-1 font-medium">
             {role === 'student' ? (
               <>
-                Department of <strong>{user?.department}</strong> • Reg: <span className="font-mono text-cyan-300">{user?.regNumber}</span>. Your voluntary location stream is synchronized with the college session geofence.
+                <span className="truncate max-w-xs">{user?.department || 'Computer Science and Engineering'}</span>
+                <span className="text-cyan-400 font-mono">Reg: {user?.registrationNumber || user?.regNumber || 'REG-PENDING'}</span>
+                <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Geofence Sync Active
+                </span>
               </>
             ) : (
               <>
-                {user?.designation} • Department of <strong>{user?.department}</strong>. Real-time geofence tracking and automated attendance records for campus sessions.
+                <span>{user?.designation || 'Faculty Coordinator'}</span>
+                <span className="text-slate-400">•</span>
+                <span className="truncate max-w-xs">{user?.department || 'Computer Science and Engineering'}</span>
+                <span className="text-cyan-400 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" /> Muthayammal Engg. College
+                </span>
               </>
             )}
-          </p>
-
-          <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-300">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-cyan-400" />
-              <span>Muthayammal Engineering College</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-cyan-400" />
-              <span>Academic Year 2024 - 2026</span>
-            </span>
           </div>
         </div>
 
         {actionLabel && (
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 pt-1 md:pt-0">
             <Button
               variant="cyan"
-              size="lg"
+              size="md"
               icon={ActionIcon || Sparkles}
               onClick={onActionClick}
-              className="w-full sm:w-auto shadow-glow-cyan"
+              className="w-full sm:w-auto shadow-glow-cyan font-bold"
             >
               {actionLabel}
             </Button>

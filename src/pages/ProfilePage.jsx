@@ -1,21 +1,17 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User,
   Mail,
   Hash,
-  Briefcase,
   GraduationCap,
   Building,
   Shield,
   ShieldCheck,
   MapPin,
-  Smartphone,
-  Phone,
+  LogOut,
   Calendar,
-  Lock,
-  ArrowRightLeft,
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from '../context/LocationContext';
@@ -23,54 +19,62 @@ import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 
 export const ProfilePage = () => {
-  const { currentRole, currentUser, switchRole } = useAuth();
-  const { isSharing, toggleSharing, geofenceStatus } = useLocation();
+  const { currentRole, currentUser, logout } = useAuth();
+  const { isSharing, toggleSharing } = useLocation();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'privacy' | 'academic'
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const regNo = currentUser?.registrationNumber || currentUser?.regNumber || 'REG-PENDING';
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in-50 duration-300">
+    <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in-50 duration-300">
       {/* Top Profile Card Banner */}
-      <div className="bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 rounded-3xl p-6 sm:p-8 text-white border border-navy-800 shadow-glow-navy relative overflow-hidden">
+      <div className="bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 rounded-3xl p-6 sm:p-7 text-white border border-navy-800 shadow-glow-navy relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 justify-between">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            {/* Big Avatar */}
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white font-extrabold text-3xl sm:text-4xl flex items-center justify-center shadow-glow-cyan border-2 border-white/20">
+        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-5 justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* Avatar */}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white font-extrabold text-2xl sm:text-3xl flex items-center justify-center shadow-glow-cyan border-2 border-white/20">
               {currentUser?.name?.charAt(0) || 'U'}
             </div>
 
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-white">
                   {currentUser?.name}
                 </h1>
                 <Badge variant={currentRole === 'student' ? 'Inside Venue' : 'Upcoming'} size="sm">
-                  {currentUser?.role || currentRole}
+                  Verified {currentRole}
                 </Badge>
               </div>
 
               <p className="text-xs sm:text-sm text-cyan-300 font-mono">
-                Registration No: {currentUser?.regNumber}
+                Reg No: {regNo}
               </p>
-              <p className="text-xs text-slate-300 flex items-center gap-1.5 pt-1">
+              <p className="text-xs text-slate-300 flex items-center gap-1.5 pt-0.5">
                 <Building className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{currentUser?.department} • Muthayammal Engineering College</span>
+                <span>{currentUser?.department || 'Computer Science and Engineering'} • MEC</span>
               </p>
             </div>
           </div>
 
-          {/* Quick Role Switcher Button */}
+          {/* Sign Out Button */}
           <div className="flex-shrink-0 w-full sm:w-auto">
             <Button
-              variant="cyan"
+              variant="outline"
               size="sm"
-              icon={ArrowRightLeft}
-              onClick={() => switchRole(currentRole === 'student' ? 'teacher' : 'student')}
-              className="w-full sm:w-auto"
+              icon={LogOut}
+              onClick={handleLogout}
+              className="w-full sm:w-auto text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
             >
-              Switch to {currentRole === 'student' ? 'Teacher' : 'Student'} Mode
+              Sign Out
             </Button>
           </div>
         </div>
@@ -115,7 +119,7 @@ export const ProfilePage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-card space-y-4">
             <h3 className="text-sm font-bold text-navy-900 uppercase tracking-wider mb-2 flex items-center gap-2">
-              <User className="w-4 h-4 text-cyan-600" /> Personal & Contact Credentials
+              <User className="w-4 h-4 text-cyan-600" /> Personal & Account Credentials
             </h3>
 
             <div className="space-y-3 text-xs">
@@ -124,12 +128,14 @@ export const ProfilePage = () => {
                 <span className="font-bold text-navy-900">{currentUser?.name}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
-                <span className="text-slate-500">Official College Email:</span>
+                <span className="text-slate-500">Official Email:</span>
                 <span className="font-semibold text-cyan-700">{currentUser?.email}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
-                <span className="text-slate-500">Phone Contact:</span>
-                <span className="font-medium text-slate-800">{currentUser?.phone}</span>
+                <span className="text-slate-500">Verified Role:</span>
+                <span className="font-bold text-emerald-700 capitalize flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {currentUser?.role || currentRole}
+                </span>
               </div>
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
                 <span className="text-slate-500">Institution:</span>
@@ -145,36 +151,30 @@ export const ProfilePage = () => {
 
             <div className="space-y-3 text-xs">
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
-                <span className="text-slate-500">Registration Number:</span>
-                <span className="font-mono font-bold text-cyan-800">{currentUser?.regNumber}</span>
+                <span className="text-slate-500">Registration / ID:</span>
+                <span className="font-mono font-bold text-cyan-800">{regNo}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
                 <span className="text-slate-500">Department:</span>
-                <span className="font-bold text-navy-900">{currentUser?.department}</span>
+                <span className="font-bold text-navy-900">{currentUser?.department || 'Computer Science and Engineering'}</span>
               </div>
               {currentRole === 'student' ? (
-                <>
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
-                    <span className="text-slate-500">Year / Degree:</span>
-                    <span className="font-semibold text-slate-800">{currentUser?.year}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
-                    <span className="text-slate-500">Class Section:</span>
-                    <span className="font-semibold text-slate-800">{currentUser?.section}</span>
-                  </div>
-                </>
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
+                  <span className="text-slate-500">Year of Study:</span>
+                  <span className="font-semibold text-slate-800">{currentUser?.year || 'III Year / B.E.'}</span>
+                </div>
               ) : (
-                <>
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
-                    <span className="text-slate-500">Designation:</span>
-                    <span className="font-semibold text-slate-800">{currentUser?.designation}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
-                    <span className="text-slate-500">Cabin / Office:</span>
-                    <span className="font-semibold text-slate-800">{currentUser?.cabin}</span>
-                  </div>
-                </>
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
+                  <span className="text-slate-500">Designation:</span>
+                  <span className="font-semibold text-slate-800">{currentUser?.designation || 'Associate Professor'}</span>
+                </div>
               )}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
+                <span className="text-slate-500">Account Created:</span>
+                <span className="font-mono text-slate-600">
+                  {currentUser?.createdAt ? new Date(currentUser.createdAt).toLocaleDateString() : 'Active'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -243,8 +243,8 @@ export const ProfilePage = () => {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-navy-800 pb-4 mb-5">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500 flex items-center justify-center">
-                  <MapPin className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 rounded-lg bg-white p-0.5 border border-slate-200 flex items-center justify-center">
+                  <img src="/logo.png" alt="CLidge" className="w-full h-full object-contain" />
                 </div>
                 <div>
                   <h4 className="text-xs font-extrabold tracking-wider text-white">MUTHAYAMMAL ENGG COLLEGE</h4>
@@ -259,13 +259,13 @@ export const ProfilePage = () => {
             {/* Middle Identity */}
             <div className="flex items-center gap-5 mb-5">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-cyan-400 to-blue-500 text-white font-black text-2xl flex items-center justify-center shadow-md border-2 border-white/20">
-                {currentUser?.name?.charAt(0)}
+                {currentUser?.name?.charAt(0) || 'U'}
               </div>
               <div className="space-y-1">
                 <h3 className="text-lg font-extrabold text-white">{currentUser?.name}</h3>
-                <p className="text-xs font-mono font-bold text-cyan-400">{currentUser?.regNumber}</p>
+                <p className="text-xs font-mono font-bold text-cyan-400">{regNo}</p>
                 <p className="text-[11px] text-slate-300">{currentUser?.department}</p>
-                <p className="text-[10px] text-slate-400 font-semibold">{currentUser?.role || currentRole}</p>
+                <p className="text-[10px] text-slate-400 font-semibold uppercase">{currentUser?.role || currentRole}</p>
               </div>
             </div>
 

@@ -6,5 +6,5 @@ echo   CLIDGE: Smart Student Location Tracking System
 echo   Starting Vite React Development Server...
 echo ========================================================
 echo.
-npm.cmd run dev
+npm run dev
 pause

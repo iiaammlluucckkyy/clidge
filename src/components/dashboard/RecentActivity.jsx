@@ -20,13 +20,13 @@ export const RecentActivity = ({ activities = RECENT_ACTIVITIES, title = 'Recent
 
   return (
     <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-card">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-base font-bold text-navy-900">{title}</h3>
-          <p className="text-xs text-slate-500">Chronological telemetry audit trail</p>
+          <p className="text-xs text-slate-500">Real-time session updates</p>
         </div>
-        <span className="text-xs font-semibold text-cyan-600 bg-cyan-50 px-2.5 py-1 rounded-full border border-cyan-100">
-          Live Log Stream
+        <span className="text-[11px] font-semibold text-cyan-700 bg-cyan-50 px-2.5 py-0.5 rounded-full border border-cyan-100">
+          Live Stream
         </span>
       </div>
 

@@ -1,79 +1,142 @@
 import React from 'react';
 import {
   Navigation,
-  ShieldCheck,
   Power,
   Compass,
-  BatteryCharging,
   Radio,
-  MapPin,
-  AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Clock,
+  WifiOff,
+  Sliders,
+  AlertCircle
 } from 'lucide-react';
 import { useLocation } from '../../context/LocationContext';
-import Badge from '../common/Badge';
 
 export const LocationSharingWidget = () => {
   const {
     isSharing,
     geofenceStatus,
+    stalenessStatus,
     currentZone,
     zoneCode,
     coordinates,
     accuracy,
-    batteryLevel,
     lastPingTime,
     pingCount,
+    gpsError,
+    isOnline,
+    isTransmitting,
+    updateIntervalSeconds,
+    activeApprovedEvent,
+    setUpdateIntervalSeconds,
     toggleSharing,
+    sendImmediateLocationPing,
     simulateMovement
   } = useLocation();
 
+  const getStalenessBadge = () => {
+    switch (stalenessStatus) {
+      case 'LIVE':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            LIVE
+          </span>
+        );
+      case 'OUTDATED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+            <Clock className="w-3 h-3 text-amber-600" />
+            OUTDATED
+          </span>
+        );
+      case 'UNAVAILABLE':
+      default:
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
+            UNAVAILABLE
+          </span>
+        );
+    }
+  };
+
   return (
-    <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-card">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-card space-y-4">
+      {/* Network or GPS Error Notification Banner */}
+      {!isOnline && (
+        <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2.5 shadow-sm">
+          <WifiOff className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <span>
+            <strong>Offline Mode:</strong> Internet disconnected. Location records will synchronize when back online.
+          </span>
+        </div>
+      )}
+
+      {gpsError && (
+        <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5 shadow-sm">
+          <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+          <span>{gpsError}</span>
+        </div>
+      )}
+
+      {/* Top Header & Sharing Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-2xl ${isSharing ? 'bg-cyan-50 text-cyan-600 ring-4 ring-cyan-50/50' : 'bg-slate-100 text-slate-400'}`}>
-            <Navigation className={`w-6 h-6 stroke-[2.2] ${isSharing ? 'animate-pulse' : ''}`} />
+          <div className={`p-2.5 rounded-2xl ${isSharing ? 'bg-cyan-50 text-cyan-600 ring-4 ring-cyan-50/50' : 'bg-slate-100 text-slate-400'}`}>
+            <Navigation className={`w-5 h-5 stroke-[2.2] ${isSharing ? 'animate-pulse' : ''}`} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-navy-900">Voluntary Location Sharing</h3>
-              <Badge variant={geofenceStatus} size="sm">
-                {isSharing ? geofenceStatus : 'GPS Inactive'}
-              </Badge>
+              <h3 className="text-sm sm:text-base font-bold text-navy-900">Live GPS & Geofence Status</h3>
+              {getStalenessBadge()}
             </div>
             <p className="text-xs text-slate-500">
-              Session-bound GPS reporting (Stops automatically when event finishes)
+              Active: <strong className="text-navy-900 font-semibold">{activeApprovedEvent?.title || 'Campus Event Session'}</strong>
             </p>
           </div>
         </div>
 
         {/* Master ON/OFF Toggle */}
-        <button
-          onClick={toggleSharing}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
-            isSharing
-              ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
-              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-          }`}
-        >
-          <Power className="w-4 h-4" />
-          <span>{isSharing ? 'Active • Click to Pause' : 'Paused • Click to Activate'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={toggleSharing}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
+              isSharing
+                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
+                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+            }`}
+          >
+            <Power className="w-3.5 h-3.5" />
+            <span>{isSharing ? 'GPS Active • Stop' : 'GPS Stopped • Start'}</span>
+          </button>
+
+          <button
+            onClick={sendImmediateLocationPing}
+            disabled={isTransmitting}
+            title="Sync location now"
+            className="p-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-cyan-50 hover:border-cyan-200 text-slate-600 hover:text-cyan-700 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isTransmitting ? 'animate-spin text-cyan-600' : ''}`} />
+          </button>
+        </div>
       </div>
 
-      {/* Real-time telemetry indicators */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 my-5">
-        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Venue Zone</p>
+      {/* Real-time Telemetry & Last Known Location Indicators */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Venue Zone */}
+        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Geofenced Zone</p>
           <p className="text-xs font-bold text-navy-900 truncate mt-0.5">{currentZone}</p>
-          <span className="text-[10px] font-mono text-cyan-600 bg-cyan-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-            {zoneCode}
+          <span className="text-[10px] font-mono text-cyan-700 bg-cyan-50 px-1.5 py-0.5 rounded mt-1 inline-block">
+            {zoneCode} ({activeApprovedEvent?.radius || 65}m radius)
           </span>
         </div>
 
-        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">GNSS Coordinates</p>
+        {/* GNSS Coordinates (Last Known Location) */}
+        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            {stalenessStatus === 'OUTDATED' ? 'Last Known GNSS' : 'Current GNSS'}
+          </p>
           <p className="text-xs font-mono font-bold text-slate-800 mt-0.5">
             {coordinates.lat.toFixed(5)}° N
           </p>
@@ -82,31 +145,59 @@ export const LocationSharingWidget = () => {
           </p>
         </div>
 
-        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Accuracy & Precision</p>
+        {/* Accuracy */}
+        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Precision</p>
           <p className="text-xs font-bold text-navy-900 mt-0.5 flex items-center gap-1">
-            <Radio className="w-3.5 h-3.5 text-cyan-500 animate-pulse" /> ±{accuracy}m (GNSS/WiFi)
+            <Radio className="w-3.5 h-3.5 text-cyan-500 animate-pulse" /> ±{accuracy}m
           </p>
-          <p className="text-[10px] text-slate-400 mt-1">High-Precision Lock</p>
+          <p className="text-[10px] text-slate-400 mt-1">GNSS Locked</p>
         </div>
 
-        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Heartbeat Synced</p>
-          <p className="text-xs font-semibold text-emerald-600 mt-0.5 flex items-center gap-1">
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '4s' }} /> {lastPingTime}
+        {/* Heartbeat Status */}
+        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Last Sync</p>
+          <p className="text-xs font-semibold text-emerald-600 mt-0.5 flex items-center gap-1 truncate">
+            <Clock className="w-3.5 h-3.5 flex-shrink-0" /> {lastPingTime || 'Initial'}
           </p>
-          <p className="text-[10px] text-slate-400 mt-1">Ping #{pingCount} to /api/location</p>
+          <p className="text-[10px] text-slate-400 mt-1">
+            {pingCount > 0 ? `Ping #${pingCount} synced` : 'Ready to transmit'}
+          </p>
         </div>
       </div>
 
-      {/* College Viva Demonstration Controls */}
-      <div className="pt-4 border-t border-dashed border-slate-200">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-cyan-50/60 p-3.5 rounded-2xl border border-cyan-100">
+      {/* Configurable Location Update Interval */}
+      <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <Sliders className="w-4 h-4 text-cyan-600 flex-shrink-0" />
+          <div>
+            <span className="font-bold text-navy-900 block">GPS Update Interval</span>
+            <span className="text-slate-500 text-[11px]">
+              Sync frequency during active event participation
+            </span>
+          </div>
+        </div>
+
+        <select
+          value={updateIntervalSeconds}
+          onChange={(e) => setUpdateIntervalSeconds(Number(e.target.value))}
+          className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-navy-900 font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+        >
+          <option value={30}>Every 30 Seconds (Fast Demo)</option>
+          <option value={60}>Every 1 Minute</option>
+          <option value={120}>Every 2 Minutes (Standard)</option>
+          <option value={300}>Every 5 Minutes (Battery Saver)</option>
+        </select>
+      </div>
+
+      {/* Demo Controls: Simulate Movement */}
+      <div className="pt-1">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-cyan-50/60 p-3 rounded-2xl border border-cyan-100">
           <div className="flex items-center gap-2">
-            <Compass className="w-4 h-4 text-cyan-600" />
+            <Compass className="w-4 h-4 text-cyan-600 flex-shrink-0" />
             <div>
-              <p className="text-xs font-bold text-cyan-950">Viva Demonstration: Simulate Movement</p>
-              <p className="text-[11px] text-cyan-700">Test how the geofence responds when the student moves.</p>
+              <p className="text-xs font-bold text-cyan-950">Demo Tool: Test Geofence Response</p>
+              <p className="text-[11px] text-cyan-700">Simulate moving inside or outside the seminar hall boundary.</p>
             </div>
           </div>
 
@@ -119,7 +210,7 @@ export const LocationSharingWidget = () => {
                   : 'bg-white text-cyan-900 hover:bg-cyan-100 border border-cyan-200'
               }`}
             >
-              Inside Auditorium
+              Inside Hall
             </button>
             <button
               onClick={() => simulateMovement('Outside Bounds', 'Campus Cafeteria (Out of Bounds)')}
@@ -129,7 +220,7 @@ export const LocationSharingWidget = () => {
                   : 'bg-white text-rose-800 hover:bg-rose-50 border border-rose-200'
               }`}
             >
-              Simulate: Walked Out to Canteen
+              Outside Bounds
             </button>
           </div>
         </div>

@@ -10,23 +10,24 @@ import {
   ChevronDown,
   Navigation,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import Badge from '../common/Badge';
 
 export const Navbar = ({ onMobileMenuToggle }) => {
-  const { currentRole, currentUser, switchRole, logout } = useAuth();
+  const { currentRole, currentUser, logout, isAuthenticated } = useAuth();
   const { geofenceStatus, isSharing } = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
 
-  const handleRoleToggle = () => {
-    const nextRole = currentRole === 'student' ? 'teacher' : 'student';
-    switchRole(nextRole);
-    navigate(nextRole === 'student' ? '/student-dashboard' : '/teacher-dashboard');
+  const handleLogout = async () => {
+    setShowProfileMenu(false);
+    await logout();
+    navigate('/login');
   };
 
   return (
@@ -42,7 +43,7 @@ export const Navbar = ({ onMobileMenuToggle }) => {
             <Menu className="w-5 h-5" />
           </button>
 
-          {/* Quick Breadcrumb / Campus Label */}
+          {/* Campus Institution Breadcrumb */}
           <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
             <span className="font-semibold text-navy-900">Muthayammal Engineering College</span>
             <span className="text-slate-300">/</span>
@@ -62,28 +63,29 @@ export const Navbar = ({ onMobileMenuToggle }) => {
           </div>
         </div>
 
-        {/* Right: Actions, Role Switcher, Notifications, Profile */}
+        {/* Right: Actions, Role Badge, Notifications, Profile */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* Geofence Live Status Pill (for student) */}
+          {/* Student Status Badge */}
           {currentRole === 'student' && (
             <div className="hidden sm:flex items-center">
-              <Badge variant={geofenceStatus} size="sm">
-                {isSharing ? geofenceStatus : 'GPS Inactive'}
-              </Badge>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Attendance Active
+              </span>
             </div>
           )}
 
-          {/* DEMO ROLE SWITCHER PILL */}
-          <button
-            onClick={handleRoleToggle}
-            title="Click to switch between Student and Teacher perspectives for project demonstration"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-cyan-200 bg-cyan-50/70 text-cyan-900 text-xs font-semibold hover:bg-cyan-100 transition-all shadow-sm"
-          >
-            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
-            <span className="hidden xs:inline text-slate-500 font-normal">View:</span>
-            <span className="capitalize text-cyan-800 font-bold">{currentRole} Mode</span>
-            <span className="text-[10px] bg-cyan-200/70 text-cyan-800 px-1.5 py-0.5 rounded font-mono">Switch</span>
-          </button>
+          {/* VERIFIED ROLE BADGE */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-200 bg-cyan-50/70 text-cyan-900 text-xs font-semibold shadow-sm">
+            {currentRole === 'teacher' ? (
+              <Shield className="w-3.5 h-3.5 text-cyan-600" />
+            ) : (
+              <GraduationCap className="w-3.5 h-3.5 text-cyan-600" />
+            )}
+            <span className="capitalize font-bold text-navy-900">
+              {currentRole === 'teacher' ? 'Faculty Portal' : 'Student Portal'}
+            </span>
+          </div>
 
           {/* Notifications Popover Toggle */}
           <div className="relative">
@@ -134,16 +136,19 @@ export const Navbar = ({ onMobileMenuToggle }) => {
               </div>
               <div className="text-left hidden xl:block">
                 <p className="text-xs font-bold text-navy-900 leading-tight truncate max-w-[120px]">{currentUser?.name}</p>
-                <p className="text-[10px] text-slate-400 capitalize">{currentRole}</p>
+                <p className="text-[10px] text-slate-400 capitalize">{currentRole || 'User'}</p>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden xl:block" />
             </button>
 
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in-50">
                 <div className="px-4 py-2 border-b border-slate-100">
                   <p className="text-xs font-bold text-navy-900 truncate">{currentUser?.name}</p>
-                  <p className="text-[11px] font-mono text-slate-500 truncate">{currentUser?.regNumber}</p>
+                  <p className="text-[11px] font-mono text-cyan-700 truncate">{currentUser?.registrationNumber || currentUser?.regNumber}</p>
+                  <span className="inline-block text-[10px] uppercase font-bold text-slate-400 mt-0.5">
+                    Role: {currentRole}
+                  </span>
                 </div>
                 <div className="py-1 text-xs">
                   <Link
@@ -155,36 +160,22 @@ export const Navbar = ({ onMobileMenuToggle }) => {
                     <span>My Profile & Settings</span>
                   </Link>
                   <Link
-                    to={currentRole === 'student' ? '/student-dashboard' : '/teacher-dashboard'}
+                    to={currentRole === 'teacher' ? '/teacher-dashboard' : '/student-dashboard'}
                     onClick={() => setShowProfileMenu(false)}
                     className="flex items-center gap-2.5 px-4 py-2 text-slate-700 hover:bg-slate-50 hover:text-cyan-600 transition-colors"
                   >
                     <Navigation className="w-4 h-4 text-slate-400" />
                     <span>My Dashboard</span>
                   </Link>
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      handleRoleToggle();
-                    }}
-                    className="w-full text-left flex items-center gap-2.5 px-4 py-2 text-slate-700 hover:bg-slate-50 hover:text-cyan-600 transition-colors"
-                  >
-                    <Shield className="w-4 h-4 text-slate-400" />
-                    <span>Switch to {currentRole === 'student' ? 'Teacher' : 'Student'} View</span>
-                  </button>
                 </div>
                 <div className="pt-1 border-t border-slate-100">
-                  <Link
-                    to="/"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      logout();
-                    }}
-                    className="flex items-center gap-2.5 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 transition-colors"
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left flex items-center gap-2.5 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Sign Out (Back to Landing)</span>
-                  </Link>
+                    <span>Sign Out</span>
+                  </button>
                 </div>
               </div>
             )}

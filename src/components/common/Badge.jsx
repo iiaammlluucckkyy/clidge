@@ -5,6 +5,7 @@ const BADGE_STYLES = {
   Ongoing: 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-500/20',
   Upcoming: 'bg-cyan-50 text-cyan-700 border-cyan-200 ring-cyan-500/20',
   Completed: 'bg-slate-100 text-slate-700 border-slate-200 ring-slate-500/20',
+  Cancelled: 'bg-rose-50 text-rose-700 border-rose-200 ring-rose-500/20',
 
   // Geofence & Location Statuses
   'Inside Venue': 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-500/20',
@@ -37,6 +38,7 @@ export const Badge = ({ children, variant, showDot = true, className = '', size 
     'Outdated / Idle': 'bg-amber-500',
     Upcoming: 'bg-cyan-500',
     Completed: 'bg-slate-400',
+    Cancelled: 'bg-rose-400',
     Offline: 'bg-slate-400'
   };
 

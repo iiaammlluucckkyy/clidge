@@ -1,39 +1,143 @@
-import React, { createContext, useContext, useState } from 'react';
-import { SAMPLE_STUDENT_PROFILE, SAMPLE_TEACHER_PROFILE } from '../data/sampleStudents';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+  auth,
+  registerStudent as apiRegisterStudent,
+  loginUser as apiLoginUser,
+  logoutUser as apiLogoutUser,
+  getPersistedSession,
+  provisionTeacherAccount as apiProvisionTeacher,
+  isLiveFirebase
+} from '../services/authService';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../services/authService';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // Roles: 'student' | 'teacher' | 'guest'
-  const [currentRole, setCurrentRole] = useState('student');
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
-  const currentUser = currentRole === 'student' ? SAMPLE_STUDENT_PROFILE : SAMPLE_TEACHER_PROFILE;
+  // Initialize and restore authentication on page refresh
+  useEffect(() => {
+    let isMounted = true;
 
-  const switchRole = (newRole) => {
-    setCurrentRole(newRole);
-    setIsAuthenticated(true);
+    // 1. First check persisted session in localStorage for immediate hydration
+    const cachedSession = getPersistedSession();
+    if (cachedSession && isMounted) {
+      setCurrentUser(cachedSession);
+    }
+
+    // 2. Listen to real Firebase Auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!isMounted) return;
+
+      if (firebaseUser) {
+        try {
+          // Fetch user profile from Firestore `users/{uid}`
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const snap = await getDoc(userDocRef);
+
+          if (snap.exists() && isMounted) {
+            const firestoreData = snap.data();
+            const fullProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              ...firestoreData
+            };
+            setCurrentUser(fullProfile);
+            localStorage.setItem('clidge_current_session_v2', JSON.stringify(fullProfile));
+          }
+        } catch (err) {
+          console.warn('Firestore user fetch onAuthStateChanged:', err);
+        }
+      } else if (!cachedSession && isMounted) {
+        setCurrentUser(null);
+      }
+
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    });
+
+    // Fallback timer so loading screen never hangs
+    const timer = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 700);
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+      clearTimeout(timer);
+    };
+  }, []);
+
+  /**
+   * Register a new student
+   * Enforces role = 'student'
+   */
+  const registerStudent = async (formData) => {
+    setAuthError(null);
+    try {
+      const user = await apiRegisterStudent(formData);
+      setCurrentUser(user);
+      return user;
+    } catch (err) {
+      setAuthError(err.message);
+      throw err;
+    }
   };
 
-  const loginAs = (role) => {
-    setCurrentRole(role);
-    setIsAuthenticated(true);
+  /**
+   * Login as Student or Teacher
+   * Verifies required role
+   */
+  const login = async ({ email, password, requiredRole }) => {
+    setAuthError(null);
+    try {
+      const user = await apiLoginUser({ email, password, requiredRole });
+      setCurrentUser(user);
+      return user;
+    } catch (err) {
+      setAuthError(err.message);
+      throw err;
+    }
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
+  /**
+   * Sign Out
+   */
+  const logout = async () => {
+    setAuthError(null);
+    await apiLogoutUser();
+    setCurrentUser(null);
   };
+
+  /**
+   * Admin Provision Teacher
+   */
+  const provisionTeacher = async (teacherData) => {
+    return await apiProvisionTeacher(teacherData);
+  };
+
+  const currentRole = currentUser?.role || null;
+  const isAuthenticated = Boolean(currentUser);
 
   return (
     <AuthContext.Provider
       value={{
-        currentRole,
         currentUser,
+        currentRole,
         isAuthenticated,
-        isDemoMode: true,
-        switchRole,
-        loginAs,
-        logout
+        isLoading,
+        authError,
+        isLiveFirebase: isLiveFirebase(),
+        registerStudent,
+        login,
+        logout,
+        provisionTeacher,
+        setAuthError
       }}
     >
       {children}

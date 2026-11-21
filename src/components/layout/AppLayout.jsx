@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import MobileNav from './MobileNav';
+import OfflineSyncBanner from '../common/OfflineSyncBanner';
 import { Info, Sparkles } from 'lucide-react';
 
 export const AppLayout = () => {
@@ -38,6 +39,7 @@ export const AppLayout = () => {
           <Navbar onMobileMenuToggle={() => setMobileMenuOpen(true)} />
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 lg:pb-10 max-w-7xl w-full mx-auto">
+            <OfflineSyncBanner />
             <Outlet />
           </main>
 
