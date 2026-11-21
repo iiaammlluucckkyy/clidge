@@ -112,6 +112,35 @@ export const LoginPage = () => {
     setErrorMessage('');
   };
 
+  const handleInstantDemoLogin = async (targetPortal) => {
+    const roleToUse = targetPortal || portal;
+    const credEmail = roleToUse === 'teacher' ? 'meenakshi.cse@muthayammal.edu.in' : 'rajesh.731622csr045@muthayammal.edu.in';
+    const credPass = roleToUse === 'teacher' ? 'Password@123' : 'Student@123';
+
+    setEmail(credEmail);
+    setPassword(credPass);
+    setPortal(roleToUse);
+    setErrorMessage('');
+    setIsSubmitting(true);
+
+    try {
+      const user = await login({
+        email: credEmail,
+        password: credPass,
+        requiredRole: roleToUse
+      });
+      if (user.role === 'teacher') {
+        navigate('/teacher-dashboard');
+      } else {
+        navigate('/student-dashboard');
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleProvisionTeacher = async (e) => {
     e.preventDefault();
     setProvisionStatus({ loading: true, error: '', success: '' });
@@ -216,9 +245,51 @@ export const LoginPage = () => {
           {errorMessage && (
             <div className="p-3.5 mb-5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2.5 animate-in fade-in-50">
               <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-              <div className="leading-relaxed">{errorMessage}</div>
+              <div className="leading-relaxed">
+                <div>{errorMessage}</div>
+                {portal === 'student' && (
+                  <div className="mt-2 pt-2 border-t border-rose-200/60 flex items-center gap-2">
+                    <Link to="/register" className="font-bold underline text-rose-800 hover:text-rose-950">
+                      Create Student Account →
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+          {/* Quick Demo Credentials Callout */}
+          <div className="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-slate-50 to-cyan-50/50 border border-slate-200 text-xs shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold text-navy-950 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
+                {portal === 'teacher' ? 'Authorized Coordinator Demo' : 'Pre-registered Student Demo'}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleInstantDemoLogin(portal)}
+                disabled={isSubmitting}
+                className="text-[11px] font-bold text-white bg-cyan-600 hover:bg-cyan-700 px-2.5 py-1 rounded-lg shadow-sm transition-all flex items-center gap-1"
+              >
+                <span>Instant Sign In</span>
+                <span>⚡</span>
+              </button>
+            </div>
+            <div className="bg-white rounded-xl p-2.5 font-mono text-[11px] text-slate-700 border border-slate-200/80 space-y-1">
+              <div className="truncate">
+                <span className="text-slate-400 select-none">Email: </span>
+                <span className="font-semibold text-navy-900">
+                  {portal === 'teacher' ? 'meenakshi.cse@muthayammal.edu.in' : 'rajesh.731622csr045@muthayammal.edu.in'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 select-none">Pass:  </span>
+                <span className="font-semibold text-navy-900">
+                  {portal === 'teacher' ? 'Password@123' : 'Student@123'}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

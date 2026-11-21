@@ -62,8 +62,17 @@ export const firebaseConfig = {
  */
 
 export const isFirebaseConfigured = () => {
+  const key = env.VITE_FIREBASE_API_KEY || '';
+  if (!key) return false;
+  const upper = key.toUpperCase();
   return Boolean(
-    env.VITE_FIREBASE_API_KEY && 
-    !env.VITE_FIREBASE_API_KEY.includes('MOCK_DEMO')
+    key &&
+    !upper.includes('DEMO') &&
+    !upper.includes('MOCK') &&
+    !upper.includes('PLACEHOLDER') &&
+    !upper.includes('YOUR') &&
+    !upper.includes('EXAMPLE') &&
+    !upper.includes('CLIDGE') &&
+    key.length >= 35
   );
 };

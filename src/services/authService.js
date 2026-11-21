@@ -29,8 +29,9 @@ export const db = getFirestore(app);
 const LOCAL_USERS_KEY = 'clidge_persisted_users_v2';
 const LOCAL_SESSION_KEY = 'clidge_current_session_v2';
 
-// Pre-seeded authorized teacher and sample student accounts for instant verification
-const DEFAULT_AUTHORIZED_TEACHERS = [
+// Pre-seeded authorized faculty and sample student accounts for instant verification & demonstration
+const DEFAULT_AUTHORIZED_USERS = [
+  // Pre-authorized Faculty Coordinators
   {
     uid: 'fac-cse-108-uid',
     name: 'Dr. S. Meenakshi, Ph.D.',
@@ -54,20 +55,58 @@ const DEFAULT_AUTHORIZED_TEACHERS = [
     year: 'Faculty Coordinator',
     role: 'teacher',
     createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  // Default Pre-Seeded Students for instant demonstration & testing
+  {
+    uid: 'std-731622csr045',
+    name: 'Rajesh Kumar M.',
+    email: 'rajesh.731622csr045@muthayammal.edu.in',
+    password: 'Student@123',
+    registrationNumber: '731622CSR045',
+    department: 'Computer Science and Engineering',
+    year: 'III Year / B.E.',
+    section: 'CSE - Section B',
+    role: 'student',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  {
+    uid: 'std-clidge-demo-uid',
+    name: 'Student Demo Account',
+    email: 'student@clidge.edu.in',
+    password: 'Student@123',
+    registrationNumber: '731622CSR099',
+    department: 'Computer Science and Engineering',
+    year: 'III Year / B.E.',
+    section: 'CSE - Section A',
+    role: 'student',
+    createdAt: '2024-01-10T09:00:00.000Z'
   }
 ];
+
+const DEFAULT_AUTHORIZED_TEACHERS = DEFAULT_AUTHORIZED_USERS.filter(u => u.role === 'teacher');
 
 // Helper to access locally stored users
 const getLocalUsers = () => {
   try {
     const raw = localStorage.getItem(LOCAL_USERS_KEY);
     if (!raw) {
-      localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(DEFAULT_AUTHORIZED_TEACHERS));
-      return DEFAULT_AUTHORIZED_TEACHERS;
+      localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(DEFAULT_AUTHORIZED_USERS));
+      return DEFAULT_AUTHORIZED_USERS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    let updated = false;
+    for (const defUser of DEFAULT_AUTHORIZED_USERS) {
+      if (!parsed.some(u => u.email.toLowerCase() === defUser.email.toLowerCase())) {
+        parsed.push(defUser);
+        updated = true;
+      }
+    }
+    if (updated) {
+      localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(parsed));
+    }
+    return parsed;
   } catch {
-    return DEFAULT_AUTHORIZED_TEACHERS;
+    return DEFAULT_AUTHORIZED_USERS;
   }
 };
 
@@ -84,42 +123,52 @@ const saveLocalUser = (userRecord) => {
 
 // Check if Firebase keys are real production keys vs default template
 export const isLiveFirebase = () => {
-  return Boolean(
-    env.VITE_FIREBASE_API_KEY &&
-    !env.VITE_FIREBASE_API_KEY.includes('MOCK_DEMO') &&
-    !env.VITE_FIREBASE_API_KEY.includes('your_firebase_api_key')
-  );
+  const key = env.VITE_FIREBASE_API_KEY || '';
+  if (!key) return false;
+  const upper = key.toUpperCase();
+  if (
+    upper.includes('DEMO') ||
+    upper.includes('MOCK') ||
+    upper.includes('PLACEHOLDER') ||
+    upper.includes('YOUR') ||
+    upper.includes('EXAMPLE') ||
+    upper.includes('CLIDGE') ||
+    key.length < 35
+  ) {
+    return false;
+  }
+  return true;
 };
 
 /**
  * Human-friendly error message translator for Firebase error codes
  */
 export const formatAuthError = (error) => {
-  const code = error?.code || '';
+  const code = (error?.code || '').toLowerCase();
   const msg = error?.message || '';
 
-  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
+  if (code.includes('invalid-credential') || code.includes('wrong-password')) {
     return 'Incorrect email or password. Please verify your credentials.';
   }
-  if (code === 'auth/user-not-found') {
-    return 'No registered account found with this email address. Please register first.';
+  if (code.includes('user-not-found')) {
+    return 'No account found with this email address. Please register first or use the demo credentials.';
   }
-  if (code === 'auth/email-already-in-use') {
+  if (code.includes('email-already-in-use')) {
     return 'An account with this email address already exists. Please log in instead.';
   }
-  if (code === 'auth/weak-password') {
+  if (code.includes('weak-password')) {
     return 'Password is too weak. Please use at least 6 characters with a combination of letters and numbers.';
   }
-  if (code === 'auth/invalid-email') {
+  if (code.includes('invalid-email')) {
     return 'Please enter a valid institutional email address.';
   }
-  if (code === 'auth/too-many-requests') {
+  if (code.includes('too-many-requests')) {
     return 'Access temporarily blocked due to multiple failed attempts. Please try again in a few minutes.';
   }
-  if (code === 'auth/network-request-failed') {
+  if (code.includes('network-request-failed')) {
     return 'Network connection failed. Please check your internet connectivity.';
   }
-  if (code === 'auth/api-key-not-valid' || code === 'auth/invalid-api-key') {
+  if (code.includes('api-key') || code.includes('apikey') || msg.toLowerCase().includes('api-key') || msg.toLowerCase().includes('api key')) {
     return 'Firebase API key in .env is not active yet. Running in secure local offline auth mode.';
   }
   return msg || 'An unexpected authentication error occurred. Please try again.';
@@ -179,11 +228,19 @@ export const registerStudent = async ({
 
       liveFirebaseSuccess = true;
     } catch (err) {
+      const errStr = `${err?.code || ''} ${err?.message || ''}`.toLowerCase();
+      const isApiKeyOrConfigError =
+        errStr.includes('api-key') ||
+        errStr.includes('apikey') ||
+        errStr.includes('project-not-found') ||
+        errStr.includes('app-not-authorized') ||
+        errStr.includes('invalid-api-key');
+
       // If it's a genuine Firebase Auth error (like email-already-in-use), rethrow
-      if (err.code && err.code !== 'auth/api-key-not-valid' && err.code !== 'auth/invalid-api-key') {
+      if (!isApiKeyOrConfigError) {
         throw new Error(formatAuthError(err));
       }
-      // Otherwise fall through to local persistence
+      console.warn('Firebase registration fallback to local mode:', err?.message);
     }
   }
 
@@ -235,7 +292,30 @@ export const loginUser = async ({ email, password, requiredRole }) => {
         liveFirebaseSuccess = true;
       }
     } catch (err) {
-      if (err.code && err.code !== 'auth/api-key-not-valid' && err.code !== 'auth/invalid-api-key') {
+      const errStr = `${err?.code || ''} ${err?.message || ''}`.toLowerCase();
+      const isConfigOrApiKeyError =
+        errStr.includes('api-key') ||
+        errStr.includes('apikey') ||
+        errStr.includes('project-not-found') ||
+        errStr.includes('app-not-authorized') ||
+        errStr.includes('invalid-api-key');
+
+      if (isConfigOrApiKeyError) {
+        console.warn('Firebase connection/key invalid. Falling back to local offline auth mode:', err?.message);
+      } else if (
+        err.code === 'auth/user-not-found' ||
+        err.code === 'auth/wrong-password' ||
+        err.code === 'auth/invalid-credential'
+      ) {
+        // Before failing, check if user exists in local demo store
+        const localUsers = getLocalUsers();
+        const found = localUsers.find(
+          u => u.email.toLowerCase() === normalizedEmail && u.password === password
+        );
+        if (!found) {
+          throw new Error(formatAuthError(err));
+        }
+      } else {
         throw new Error(formatAuthError(err));
       }
     }
@@ -254,7 +334,15 @@ export const loginUser = async ({ email, password, requiredRole }) => {
       if (userExists) {
         throw new Error('Incorrect password. Please verify your credentials.');
       } else {
-        throw new Error('No account found with this email address. Please register first.');
+        if (requiredRole === 'student') {
+          throw new Error(
+            `No account found with this email address for student access. Click "Create Student Account" above or use the one-click demo credentials below.`
+          );
+        } else {
+          throw new Error(
+            `No account found with this email address for faculty access. Only authorized faculty can access this portal. Use the coordinator demo credentials below or contact admin.`
+          );
+        }
       }
     }
     userProfile = { ...found };
