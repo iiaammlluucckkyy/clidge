@@ -12,13 +12,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <EventProvider>
-          <LocationProvider>
+        <LocationProvider>
+          <EventProvider>
             <AttendanceProvider>
               <App />
             </AttendanceProvider>
-          </LocationProvider>
-        </EventProvider>
+          </EventProvider>
+        </LocationProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
