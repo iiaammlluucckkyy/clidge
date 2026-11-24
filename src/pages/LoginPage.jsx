@@ -397,7 +397,7 @@ export const LoginPage = () => {
               className="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-mono"
             />
             <p className="text-[10px] text-amber-700 mt-1">
-              Default demo secret in .env: <code className="font-bold">MEC-CSE-ADMIN-SECURE-2026</code>
+              Admin secret key: <code className="font-bold">CLIDGE-ADMIN-SECURE-2026</code>
             </p>
           </div>
 
