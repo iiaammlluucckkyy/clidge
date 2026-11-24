@@ -47,23 +47,10 @@ export const LoginPage = () => {
   });
   const [provisionStatus, setProvisionStatus] = useState({ loading: false, error: '', success: '' });
 
-  // Clear errors when switching portals & support demo param
+  // Clear errors when switching portals
   useEffect(() => {
     setErrorMessage('');
   }, [portal]);
-
-  useEffect(() => {
-    const demoParam = searchParams.get('demo');
-    if (demoParam === 'teacher') {
-      setPortal('teacher');
-      setEmail('meenakshi.cse@muthayammal.edu.in');
-      setPassword('Password@123');
-    } else if (demoParam === 'student') {
-      setPortal('student');
-      setEmail('rajesh.731622csr045@muthayammal.edu.in');
-      setPassword('Student@123');
-    }
-  }, [location.search]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,48 +74,6 @@ export const LoginPage = () => {
       });
 
       // Redirect to appropriate dashboard based on role
-      if (user.role === 'teacher') {
-        navigate('/teacher-dashboard');
-      } else {
-        navigate('/student-dashboard');
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleQuickFill = (type) => {
-    if (type === 'teacher') {
-      setPortal('teacher');
-      setEmail('meenakshi.cse@muthayammal.edu.in');
-      setPassword('Password@123');
-    } else {
-      setPortal('student');
-      setEmail('rajesh.731622csr045@muthayammal.edu.in');
-      setPassword('Student@123');
-    }
-    setErrorMessage('');
-  };
-
-  const handleInstantDemoLogin = async (targetPortal) => {
-    const roleToUse = targetPortal || portal;
-    const credEmail = roleToUse === 'teacher' ? 'meenakshi.cse@muthayammal.edu.in' : 'rajesh.731622csr045@muthayammal.edu.in';
-    const credPass = roleToUse === 'teacher' ? 'Password@123' : 'Student@123';
-
-    setEmail(credEmail);
-    setPassword(credPass);
-    setPortal(roleToUse);
-    setErrorMessage('');
-    setIsSubmitting(true);
-
-    try {
-      const user = await login({
-        email: credEmail,
-        password: credPass,
-        requiredRole: roleToUse
-      });
       if (user.role === 'teacher') {
         navigate('/teacher-dashboard');
       } else {
@@ -258,39 +203,6 @@ export const LoginPage = () => {
             </div>
           )}
 
-          {/* Quick Demo Credentials Callout */}
-          <div className="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-slate-50 to-cyan-50/50 border border-slate-200 text-xs shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-bold text-navy-950 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
-                {portal === 'teacher' ? 'Authorized Coordinator Demo' : 'Pre-registered Student Demo'}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleInstantDemoLogin(portal)}
-                disabled={isSubmitting}
-                className="text-[11px] font-bold text-white bg-cyan-600 hover:bg-cyan-700 px-2.5 py-1 rounded-lg shadow-sm transition-all flex items-center gap-1"
-              >
-                <span>Instant Sign In</span>
-                <span>⚡</span>
-              </button>
-            </div>
-            <div className="bg-white rounded-xl p-2.5 font-mono text-[11px] text-slate-700 border border-slate-200/80 space-y-1">
-              <div className="truncate">
-                <span className="text-slate-400 select-none">Email: </span>
-                <span className="font-semibold text-navy-900">
-                  {portal === 'teacher' ? 'meenakshi.cse@muthayammal.edu.in' : 'rajesh.731622csr045@muthayammal.edu.in'}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 select-none">Pass:  </span>
-                <span className="font-semibold text-navy-900">
-                  {portal === 'teacher' ? 'Password@123' : 'Student@123'}
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -349,42 +261,25 @@ export const LoginPage = () => {
             </Button>
           </form>
 
-          {/* Quick Demo & Admin Helpers */}
-          <div className="mt-5 pt-4 border-t border-slate-100 text-xs space-y-3">
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <span className="font-semibold flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-600" /> One-Click Fill:
-              </span>
-              <div className="flex items-center gap-2">
-                {portal === 'teacher' ? (
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('teacher')}
-                    className="px-3 py-1 bg-navy-50 hover:bg-navy-100 text-navy-900 border border-navy-200 rounded-lg font-bold text-[11px] transition-colors"
-                  >
-                    Fill Faculty Credentials
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('student')}
-                    className="px-3 py-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 rounded-lg font-bold text-[11px] transition-colors"
-                  >
-                    Fill Student Credentials
-                  </button>
-                )}
+          {/* Institutional Helpers */}
+          <div className="mt-5 pt-4 border-t border-slate-100 text-xs">
+            {portal === 'student' ? (
+              <div className="text-center text-slate-500 text-[11px]">
+                <span>First time registering for campus events? </span>
+                <Link to="/register" className="font-bold text-cyan-700 hover:text-cyan-800 underline">
+                  Create Student Account →
+                </Link>
               </div>
-            </div>
-
-            {portal === 'teacher' && (
-              <div className="text-center pt-1">
+            ) : (
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>Authorized Faculty Only</span>
                 <button
                   type="button"
                   onClick={() => setProvisionModalOpen(true)}
-                  className="text-[11px] font-semibold text-slate-500 hover:text-navy-900 transition-colors inline-flex items-center gap-1"
+                  className="font-semibold text-slate-500 hover:text-navy-900 transition-colors inline-flex items-center gap-1"
                 >
                   <KeyRound className="w-3 h-3 text-cyan-600" />
-                  <span>Admin Faculty Provisioning</span>
+                  <span>Admin Provisioning</span>
                 </button>
               </div>
             )}
