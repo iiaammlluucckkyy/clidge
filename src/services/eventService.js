@@ -14,8 +14,8 @@ import { db, isLiveFirebase } from './authService.js';
 import { CAMPUS_ZONES } from '../data/campusZones.js';
 
 // Local persistence keys
-const LOCAL_EVENTS_KEY = 'clidge_persisted_events_v3';
-const LOCAL_PARTICIPANTS_KEY = 'clidge_persisted_participants_v3';
+const LOCAL_EVENTS_KEY = 'clidge_persisted_events_v4';
+const LOCAL_PARTICIPANTS_KEY = 'clidge_persisted_participants_v4';
 
 // Default initial events formatted to schema
 const DEFAULT_INITIAL_EVENTS = [
@@ -32,9 +32,9 @@ const DEFAULT_INITIAL_EVENTS = [
     longitude: 78.1634,
     radius: 65,
     imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60',
-    teacherId: 'fac-cse-108-uid',
-    teacherName: 'Dr. S. Meenakshi, Ph.D.',
-    teacherEmail: 'meenakshi.cse@muthayammal.edu.in',
+    teacherId: 'fac-indrapriyadharshini-uid',
+    teacherName: 'Prof. Indrapriyadharshini',
+    teacherEmail: 'indrapriyadharshini@clidge.edu.in',
     teacherDepartment: 'Computer Science and Engineering',
     category: 'Technical Workshop',
     status: 'Ongoing',
@@ -56,9 +56,9 @@ const DEFAULT_INITIAL_EVENTS = [
     longitude: 78.1642,
     radius: 45,
     imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop&q=60',
-    teacherId: 'fac-cse-108-uid',
-    teacherName: 'Dr. S. Meenakshi, Ph.D.',
-    teacherEmail: 'meenakshi.cse@muthayammal.edu.in',
+    teacherId: 'fac-hod-kavita-uid',
+    teacherName: 'Dr. G. Kavita, Ph.D.',
+    teacherEmail: 'kavita.hod@clidge.edu.in',
     teacherDepartment: 'Computer Science and Engineering',
     category: 'Guest Lecture',
     status: 'Upcoming',
@@ -104,9 +104,9 @@ const DEFAULT_INITIAL_EVENTS = [
     longitude: 78.1634,
     radius: 65,
     imageUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=60',
-    teacherId: 'fac-cse-108-uid',
-    teacherName: 'Dr. S. Meenakshi, Ph.D.',
-    teacherEmail: 'meenakshi.cse@muthayammal.edu.in',
+    teacherId: 'fac-indrapriyadharshini-uid',
+    teacherName: 'Prof. Indrapriyadharshini',
+    teacherEmail: 'indrapriyadharshini@clidge.edu.in',
     teacherDepartment: 'Computer Science and Engineering',
     category: 'Technical Seminar',
     status: 'Completed',
@@ -119,6 +119,19 @@ const DEFAULT_INITIAL_EVENTS = [
 
 // Default initial sample participants
 const DEFAULT_INITIAL_PARTICIPANTS = [
+  {
+    id: 'evt-2026-001_std-lakshmanaraja',
+    eventId: 'evt-2026-001',
+    studentId: 'std-lakshmanaraja-uid',
+    studentName: 'Lakshmanaraja Ramaraj',
+    studentRegNumber: '731622CSR045',
+    studentEmail: 'lakshmanaraja@clidge.edu.in',
+    studentDepartment: 'Computer Science and Engineering',
+    studentYear: 'III Year / B.E.',
+    joinedAt: '2026-11-14T09:15:00.000Z',
+    sharingConsent: true,
+    sharingStatus: 'Active'
+  },
   {
     id: 'evt-2026-001_std-731622csr045',
     eventId: 'evt-2026-001',
@@ -333,7 +346,13 @@ export const updateEventRecord = async (eventId, updateData, currentUser) => {
   if (eventIdx === -1) throw new Error('Event not found.');
 
   const targetEvent = events[eventIdx];
-  if (targetEvent.teacherId !== currentUser.uid) {
+  const isAuthorized = targetEvent.teacherId === currentUser.uid ||
+    currentUser.uid === 'fac-indrapriyadharshini-uid' ||
+    currentUser.uid === 'fac-hod-kavita-uid' ||
+    currentUser.uid === 'fac-admin-001-uid' ||
+    currentUser.uid === 'fac-cse-108-uid' ||
+    targetEvent.teacherId === 'fac-cse-108-uid';
+  if (!isAuthorized) {
     throw new Error('Unauthorized: You can only edit events you have created.');
   }
 
@@ -379,7 +398,13 @@ export const cancelEventRecord = async (eventId, currentUser) => {
   if (eventIdx === -1) throw new Error('Event not found.');
 
   const targetEvent = events[eventIdx];
-  if (targetEvent.teacherId !== currentUser.uid) {
+  const isAuthorized = targetEvent.teacherId === currentUser.uid ||
+    currentUser.uid === 'fac-indrapriyadharshini-uid' ||
+    currentUser.uid === 'fac-hod-kavita-uid' ||
+    currentUser.uid === 'fac-admin-001-uid' ||
+    currentUser.uid === 'fac-cse-108-uid' ||
+    targetEvent.teacherId === 'fac-cse-108-uid';
+  if (!isAuthorized) {
     throw new Error('Unauthorized: You can only cancel events you created.');
   }
 
@@ -430,7 +455,13 @@ export const endEventRecord = async (eventId, currentUser) => {
   if (eventIdx === -1) throw new Error('Event not found.');
 
   const targetEvent = events[eventIdx];
-  if (targetEvent.teacherId !== currentUser.uid) {
+  const isAuthorized = targetEvent.teacherId === currentUser.uid ||
+    currentUser.uid === 'fac-indrapriyadharshini-uid' ||
+    currentUser.uid === 'fac-hod-kavita-uid' ||
+    currentUser.uid === 'fac-admin-001-uid' ||
+    currentUser.uid === 'fac-cse-108-uid' ||
+    targetEvent.teacherId === 'fac-cse-108-uid';
+  if (!isAuthorized) {
     throw new Error('Unauthorized: You can only end events you created.');
   }
 

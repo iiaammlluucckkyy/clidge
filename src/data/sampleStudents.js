@@ -4,15 +4,15 @@
  */
 
 export const SAMPLE_STUDENT_PROFILE = {
-  id: 'std-731622csr045',
-  name: 'Rajesh Kumar M.',
-  email: 'rajesh.731622csr045@muthayammal.edu.in',
+  id: 'std-lakshmanaraja-uid',
+  name: 'Lakshmanaraja Ramaraj',
+  email: 'lakshmanaraja@clidge.edu.in',
   regNumber: '731622CSR045',
   role: 'Student',
   department: 'Computer Science and Engineering',
   year: 'III Year / B.E.',
-  section: 'CSE - Section B',
-  rollNumber: '22CSB45',
+  section: 'CSE - Section A',
+  rollNumber: '22CSA45',
   academicYear: '2024 - 2026',
   avatarUrl: null, // Will use initials
   phone: '+91 98421 78910',
@@ -42,13 +42,13 @@ export const SAMPLE_STUDENT_PROFILE = {
 };
 
 export const SAMPLE_TEACHER_PROFILE = {
-  id: 'fac-cse-108',
-  name: 'Dr. S. Meenakshi, Ph.D.',
-  email: 'meenakshi.cse@muthayammal.edu.in',
-  regNumber: 'FAC-MEC-CSE-108',
+  id: 'fac-indrapriyadharshini-uid',
+  name: 'Prof. Indrapriyadharshini',
+  email: 'indrapriyadharshini@clidge.edu.in',
+  regNumber: 'FAC-CSE-015',
   role: 'Teacher / Faculty Coordinator',
   department: 'Computer Science and Engineering',
-  designation: 'Associate Professor & Campus Event Coordinator',
+  designation: 'Assistant Professor & Campus Event Coordinator',
   cabin: 'CS Academic Block - Room 214',
   phone: '+91 94432 55678',
   supervisedEventsCount: 18,
@@ -59,7 +59,7 @@ export const SAMPLE_TEACHER_PROFILE = {
 export const MONITORED_STUDENTS = [
   {
     id: 'std-01',
-    name: 'Rajesh Kumar M.',
+    name: 'Lakshmanaraja Ramaraj',
     regNumber: '731622CSR045',
     department: 'CSE - III Year',
     eventName: 'National Level Workshop on Generative AI',

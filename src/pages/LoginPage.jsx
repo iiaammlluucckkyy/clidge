@@ -320,7 +320,7 @@ export const LoginPage = () => {
             <input
               type="text"
               required
-              placeholder="e.g. Dr. S. Meenakshi"
+              placeholder="e.g. Prof. Indrapriyadharshini"
               value={provisionData.name}
               onChange={(e) => setProvisionData({ ...provisionData, name: e.target.value })}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"

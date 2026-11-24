@@ -165,7 +165,7 @@ export const RegisterPage = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Rajesh Kumar M."
+                  placeholder="e.g. Lakshmanaraja Ramaraj"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-navy-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"

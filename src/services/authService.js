@@ -26,17 +26,99 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 // Local persistence key for offline/demo database replication
-const LOCAL_USERS_KEY = 'clidge_persisted_users_v2';
-const LOCAL_SESSION_KEY = 'clidge_current_session_v2';
+const LOCAL_USERS_KEY = 'clidge_persisted_users_v4';
+const LOCAL_SESSION_KEY = 'clidge_current_session_v4';
 
 // Pre-seeded authorized faculty and sample student accounts for instant verification & demonstration
 const DEFAULT_AUTHORIZED_USERS = [
-  // Pre-authorized Faculty Coordinators
+  // 1. Teacher / Faculty Coordinator - Prof. Indrapriyadharshini
+  {
+    uid: 'fac-indrapriyadharshini-uid',
+    name: 'Prof. Indrapriyadharshini',
+    email: 'indrapriyadharshini@clidge.edu.in',
+    password: 'Teacher@123',
+    passwords: ['Teacher@123', 'Password@123', 'Teacher@2026', 'Clidge@2026'],
+    registrationNumber: 'FAC-CSE-015',
+    department: 'Computer Science and Engineering',
+    designation: 'Assistant Professor & Faculty Coordinator',
+    year: 'Faculty Coordinator',
+    role: 'teacher',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  {
+    uid: 'fac-indrapriyadharshini-mec-uid',
+    name: 'Prof. Indrapriyadharshini',
+    email: 'indrapriyadharshini.cse@muthayammal.edu.in',
+    password: 'Teacher@123',
+    passwords: ['Teacher@123', 'Password@123', 'Teacher@2026', 'Clidge@2026'],
+    registrationNumber: 'FAC-CSE-015',
+    department: 'Computer Science and Engineering',
+    designation: 'Assistant Professor & Faculty Coordinator',
+    year: 'Faculty Coordinator',
+    role: 'teacher',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  // 2. Head of Department (HOD) - Dr. G. Kavita
+  {
+    uid: 'fac-hod-kavita-uid',
+    name: 'Dr. G. Kavita, Ph.D.',
+    email: 'kavita.hod@clidge.edu.in',
+    password: 'Teacher@123',
+    passwords: ['Teacher@123', 'Hod@123', 'Password@123', 'Teacher@2026', 'Clidge@2026'],
+    registrationNumber: 'HOD-CSE-001',
+    department: 'Computer Science and Engineering',
+    designation: 'Professor & Head of Department (HOD - CSE)',
+    year: 'Head of Department',
+    role: 'teacher',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  {
+    uid: 'fac-hod-kavita-mec-uid',
+    name: 'Dr. G. Kavita, Ph.D.',
+    email: 'kavita.cse@muthayammal.edu.in',
+    password: 'Teacher@123',
+    passwords: ['Teacher@123', 'Hod@123', 'Password@123', 'Teacher@2026', 'Clidge@2026'],
+    registrationNumber: 'HOD-CSE-001',
+    department: 'Computer Science and Engineering',
+    designation: 'Professor & Head of Department (HOD - CSE)',
+    year: 'Head of Department',
+    role: 'teacher',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  {
+    uid: 'fac-hod-cse-uid',
+    name: 'Dr. G. Kavita, Ph.D.',
+    email: 'hod.cse@clidge.edu.in',
+    password: 'Teacher@123',
+    passwords: ['Teacher@123', 'Hod@123', 'Password@123', 'Teacher@2026', 'Clidge@2026'],
+    registrationNumber: 'HOD-CSE-001',
+    department: 'Computer Science and Engineering',
+    designation: 'Professor & Head of Department (HOD - CSE)',
+    year: 'Head of Department',
+    role: 'teacher',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  // Generic Teacher Account
+  {
+    uid: 'fac-admin-001-uid',
+    name: 'Prof. Indrapriyadharshini',
+    email: 'teacher@clidge.edu.in',
+    password: 'Teacher@123',
+    passwords: ['Teacher@123', 'Teacher@2026', 'Password@123', 'Clidge@2026'],
+    registrationNumber: 'FAC-CSE-015',
+    department: 'Computer Science and Engineering',
+    designation: 'Assistant Professor & Faculty Coordinator',
+    year: 'Faculty Coordinator',
+    role: 'teacher',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  // Legacy Teacher for backwards compatibility & test suites
   {
     uid: 'fac-cse-108-uid',
     name: 'Dr. S. Meenakshi, Ph.D.',
     email: 'meenakshi.cse@muthayammal.edu.in',
-    password: 'Password@123', // Authorized initial password
+    password: 'Password@123',
+    passwords: ['Password@123', 'Teacher@123', 'Teacher@2026'],
     registrationNumber: 'FAC-MEC-CSE-108',
     department: 'Computer Science and Engineering',
     designation: 'Associate Professor & Campus Event Coordinator',
@@ -44,40 +126,71 @@ const DEFAULT_AUTHORIZED_USERS = [
     role: 'teacher',
     createdAt: '2024-01-10T09:00:00.000Z'
   },
+  // 3. Student - Lakshmanaraja Ramaraj
   {
-    uid: 'fac-admin-001-uid',
-    name: 'Prof. K. Arulraj',
-    email: 'teacher@clidge.edu.in',
-    password: 'Teacher@2026',
-    registrationNumber: 'FAC-MEC-ECE-042',
-    department: 'Electronics & Communication Engineering',
-    designation: 'Assistant Professor / ECE',
-    year: 'Faculty Coordinator',
-    role: 'teacher',
+    uid: 'std-lakshmanaraja-uid',
+    name: 'Lakshmanaraja Ramaraj',
+    email: 'lakshmanaraja@clidge.edu.in',
+    password: 'Student@123',
+    passwords: ['Student@123', 'Password@123', 'Clidge@2026'],
+    registrationNumber: '731622CSR045',
+    department: 'Computer Science and Engineering',
+    year: 'III Year / B.E.',
+    section: 'CSE - Section A',
+    role: 'student',
     createdAt: '2024-01-10T09:00:00.000Z'
   },
-  // Default Pre-Seeded Students for instant demonstration & testing
+  {
+    uid: 'std-lakshmanaraja-mec-uid',
+    name: 'Lakshmanaraja Ramaraj',
+    email: 'lakshmanaraja.731622csr045@muthayammal.edu.in',
+    password: 'Student@123',
+    passwords: ['Student@123', 'Password@123', 'Clidge@2026'],
+    registrationNumber: '731622CSR045',
+    department: 'Computer Science and Engineering',
+    year: 'III Year / B.E.',
+    section: 'CSE - Section A',
+    role: 'student',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  {
+    uid: 'std-lakshmanaraja-full-uid',
+    name: 'Lakshmanaraja Ramaraj',
+    email: 'lakshmanaraja.ramaraj@clidge.edu.in',
+    password: 'Student@123',
+    passwords: ['Student@123', 'Password@123', 'Clidge@2026'],
+    registrationNumber: '731622CSR045',
+    department: 'Computer Science and Engineering',
+    year: 'III Year / B.E.',
+    section: 'CSE - Section A',
+    role: 'student',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  // Generic Student Account
+  {
+    uid: 'std-clidge-demo-uid',
+    name: 'Lakshmanaraja Ramaraj',
+    email: 'student@clidge.edu.in',
+    password: 'Student@123',
+    passwords: ['Student@123', 'Password@123', 'Clidge@2026'],
+    registrationNumber: '731622CSR045',
+    department: 'Computer Science and Engineering',
+    year: 'III Year / B.E.',
+    section: 'CSE - Section A',
+    role: 'student',
+    createdAt: '2024-01-10T09:00:00.000Z'
+  },
+  // Legacy Student for backwards compatibility & test suites
   {
     uid: 'std-731622csr045',
     name: 'Rajesh Kumar M.',
     email: 'rajesh.731622csr045@muthayammal.edu.in',
     password: 'Student@123',
+    passwords: ['Student@123', 'Password@123'],
     registrationNumber: '731622CSR045',
     department: 'Computer Science and Engineering',
     year: 'III Year / B.E.',
     section: 'CSE - Section B',
-    role: 'student',
-    createdAt: '2024-01-10T09:00:00.000Z'
-  },
-  {
-    uid: 'std-clidge-demo-uid',
-    name: 'Student Demo Account',
-    email: 'student@clidge.edu.in',
-    password: 'Student@123',
-    registrationNumber: '731622CSR099',
-    department: 'Computer Science and Engineering',
-    year: 'III Year / B.E.',
-    section: 'CSE - Section A',
     role: 'student',
     createdAt: '2024-01-10T09:00:00.000Z'
   }
@@ -96,8 +209,12 @@ const getLocalUsers = () => {
     const parsed = JSON.parse(raw);
     let updated = false;
     for (const defUser of DEFAULT_AUTHORIZED_USERS) {
-      if (!parsed.some(u => u.email.toLowerCase() === defUser.email.toLowerCase())) {
+      const idx = parsed.findIndex(u => u.email.toLowerCase() === defUser.email.toLowerCase());
+      if (idx === -1) {
         parsed.push(defUser);
+        updated = true;
+      } else {
+        parsed[idx] = { ...parsed[idx], ...defUser };
         updated = true;
       }
     }
@@ -310,7 +427,8 @@ export const loginUser = async ({ email, password, requiredRole }) => {
         // Before failing, check if user exists in local demo store
         const localUsers = getLocalUsers();
         const found = localUsers.find(
-          u => u.email.toLowerCase() === normalizedEmail && u.password === password
+          u => u.email.toLowerCase() === normalizedEmail &&
+            (u.password === password || (Array.isArray(u.passwords) && u.passwords.includes(password)))
         );
         if (!found) {
           throw new Error(formatAuthError(err));
@@ -325,7 +443,8 @@ export const loginUser = async ({ email, password, requiredRole }) => {
   if (!userProfile) {
     const localUsers = getLocalUsers();
     const found = localUsers.find(
-      u => u.email.toLowerCase() === normalizedEmail && u.password === password
+      u => u.email.toLowerCase() === normalizedEmail &&
+        (u.password === password || (Array.isArray(u.passwords) && u.passwords.includes(password)))
     );
 
     if (!found) {
