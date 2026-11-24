@@ -128,10 +128,10 @@ export const Sidebar = () => {
         </Link>
       </div>
 
-      {/* College Info Pill */}
+      {/* Campus Info Pill */}
       <div className="px-5 py-3 bg-navy-900/60 border-b border-navy-800/60">
-        <p className="text-[11px] font-bold text-slate-200 truncate">Muthayammal Engg. College</p>
-        <p className="text-[10px] text-cyan-300/80 truncate">Autonomous • Rasipuram</p>
+        <p className="text-[11px] font-bold text-slate-200 truncate">CLIDGE Campus Network</p>
+        <p className="text-[10px] text-cyan-300/80 truncate">Smart Student Tracking</p>
       </div>
 
       {/* Navigation Links */}

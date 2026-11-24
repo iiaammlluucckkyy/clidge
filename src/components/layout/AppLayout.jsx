@@ -14,12 +14,12 @@ export const AppLayout = () => {
       {/* Official Institution Header Bar */}
       <div className="bg-navy-950 text-white text-xs px-4 sm:px-6 py-2 border-b border-navy-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-cyan-400">Muthayammal Engineering College (Autonomous)</span>
-          <span className="text-slate-400 hidden sm:inline">• Department of Computer Science & Engineering</span>
+          <span className="font-bold text-cyan-400">CLIDGE Smart Campus Network</span>
+          <span className="text-slate-400 hidden sm:inline">• Automated Location & Event Verification</span>
         </div>
         <div className="flex items-center gap-2 text-[11px] text-slate-300">
           <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span>Campus Geofence System Active</span>
+          <span>Campus Geofence Active</span>
         </div>
       </div>
 

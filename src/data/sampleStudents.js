@@ -202,7 +202,7 @@ export const RECENT_ACTIVITIES = [
   {
     id: 'act-004',
     type: 'event_join',
-    title: 'Registered for HackMuthayammal 2026',
+    title: 'Registered for Annual Campus Hackathon 2026',
     description: 'Slot confirmed for 24-Hour Code Sprint (Tech Park Lab 4).',
     timestamp: '2 days ago',
     status: 'info',

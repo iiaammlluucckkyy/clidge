@@ -129,7 +129,7 @@ export const LandingPage = () => {
           {/* Institutional Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-semibold">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Muthayammal Engineering College (Autonomous) • Rasipuram</span>
+            <span>Smart Campus Event & Location Monitoring Platform</span>
           </div>
 
           {/* Official Logo Showcase */}
@@ -476,8 +476,8 @@ export const LandingPage = () => {
             <span className="text-slate-400">• Smart Student Location Tracking & Campus Event Monitoring System</span>
           </div>
           <div className="text-right text-[11px] text-slate-400">
-            <p>Muthayammal Engineering College (Autonomous), Rasipuram - 637 408</p>
-            <p>Department of Computer Science & Engineering</p>
+            <p>Smart Student Tracking & Campus Geofence System</p>
+            <p>Collegiate Event Monitoring & Attendance Platform</p>
           </div>
         </div>
       </footer>

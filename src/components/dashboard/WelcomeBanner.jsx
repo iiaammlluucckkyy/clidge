@@ -46,7 +46,7 @@ export const WelcomeBanner = ({
                 <span className="text-slate-400">•</span>
                 <span className="truncate max-w-xs">{user?.department || 'Computer Science and Engineering'}</span>
                 <span className="text-cyan-400 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" /> Muthayammal Engg. College
+                  <MapPin className="w-3.5 h-3.5" /> Central Campus
                 </span>
               </>
             )}

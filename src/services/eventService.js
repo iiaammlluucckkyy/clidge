@@ -70,7 +70,7 @@ const DEFAULT_INITIAL_EVENTS = [
   {
     id: 'evt-2026-003',
     eventId: 'evt-2026-003',
-    title: 'HackMuthayammal 2026: 24-Hour Code Sprint',
+    title: 'Annual Campus Hackathon 2026: 24-Hour Code Sprint',
     description: 'Annual inter-departmental prototype hackathon solving real-world regional challenges across sustainable tech, education, and health.',
     venue: 'Advanced Computing Lab & Tech Park',
     date: '2026-11-28',

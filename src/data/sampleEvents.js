@@ -65,7 +65,7 @@ export const INITIAL_EVENTS = [
   },
   {
     id: 'evt-2026-003',
-    title: 'HackMuthayammal 2026: 24-Hour Code Sprint',
+    title: 'Annual Campus Hackathon 2026: 24-Hour Code Sprint',
     category: 'Hackathon',
     department: 'Information Technology',
     status: 'Upcoming',

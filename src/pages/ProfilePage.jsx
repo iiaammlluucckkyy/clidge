@@ -139,7 +139,7 @@ export const ProfilePage = () => {
               </div>
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
                 <span className="text-slate-500">Institution:</span>
-                <span className="font-semibold text-navy-900">Muthayammal Engineering College</span>
+                <span className="font-semibold text-navy-900">Campus Institution</span>
               </div>
             </div>
           </div>
@@ -247,8 +247,8 @@ export const ProfilePage = () => {
                   <img src="/logo.png" alt="CLidge" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-extrabold tracking-wider text-white">MUTHAYAMMAL ENGG COLLEGE</h4>
-                  <p className="text-[9px] text-cyan-300 uppercase tracking-widest">Autonomous • Rasipuram</p>
+                  <h4 className="text-xs font-extrabold tracking-wider text-white">COLLEGIATE CAMPUS ID</h4>
+                  <p className="text-[9px] text-cyan-300 uppercase tracking-widest">Smart Student Tracking</p>
                 </div>
               </div>
               <span className="text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded">

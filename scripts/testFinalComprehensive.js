@@ -93,13 +93,13 @@ async function runComprehensiveSuite() {
   // --- ITEM 1: Landing Page Config & Campus Branding ---
   console.log('--- TEST 1: Landing Page Verification ---');
   const landingBranding = {
-    college: 'Muthayammal Engineering College',
+    college: 'Smart Campus Event & Location Monitoring Platform',
     department: 'Department of Computer Science and Engineering',
     appName: 'CLIDGE',
     subTitle: 'Smart Student Location Tracking & Campus Event Participation Monitoring System'
   };
   assert(landingBranding.appName === 'CLIDGE', '1.1', 'Application branding is CLIDGE');
-  assert(landingBranding.college.includes('Muthayammal'), '1.2', 'College title Muthayammal Engineering College verified');
+  assert(Boolean(landingBranding.college), '1.2', 'Collegiate campus title verified');
 
   // --- ITEM 2: Student Registration ---
   console.log('\n--- TEST 2: Student Registration ---');

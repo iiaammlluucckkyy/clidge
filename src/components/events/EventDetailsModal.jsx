@@ -204,7 +204,7 @@ export const EventDetailsModal = ({
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Faculty Coordinator</span>
             <p className="font-bold text-navy-900">{event.teacherName || 'Faculty In-Charge'}</p>
             <p className="text-slate-500 text-[11px] flex items-center gap-1 mt-0.5">
-              <Mail className="w-3.5 h-3.5 text-slate-400" /> {event.teacherEmail || 'coordinator@muthayammal.edu.in'}
+              <Mail className="w-3.5 h-3.5 text-slate-400" /> {event.teacherEmail || 'coordinator@campus.edu.in'}
             </p>
           </div>
           <div className="text-[11px] text-slate-500">

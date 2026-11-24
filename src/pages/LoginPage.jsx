@@ -214,7 +214,7 @@ export const LoginPage = () => {
                 <input
                   type="email"
                   required
-                  placeholder={portal === 'student' ? 'student.reg@muthayammal.edu.in' : 'faculty@muthayammal.edu.in'}
+                  placeholder={portal === 'student' ? 'student.reg@college.edu.in' : 'faculty@college.edu.in'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-navy-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
@@ -334,7 +334,7 @@ export const LoginPage = () => {
             <input
               type="email"
               required
-              placeholder="faculty@muthayammal.edu.in"
+              placeholder="faculty@college.edu.in"
               value={provisionData.email}
               onChange={(e) => setProvisionData({ ...provisionData, email: e.target.value })}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"

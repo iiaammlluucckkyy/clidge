@@ -45,9 +45,9 @@ export const Navbar = ({ onMobileMenuToggle }) => {
 
           {/* Campus Institution Breadcrumb */}
           <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
-            <span className="font-semibold text-navy-900">Muthayammal Engineering College</span>
+            <span className="font-semibold text-navy-900">Campus Event Portal</span>
             <span className="text-slate-300">/</span>
-            <span className="text-cyan-600 font-medium">Campus Geofence Active</span>
+            <span className="text-cyan-600 font-medium">GNSS Geofence Active</span>
           </div>
         </div>
 
@@ -117,7 +117,7 @@ export const Navbar = ({ onMobileMenuToggle }) => {
                   </div>
                   <div className="p-3 hover:bg-slate-50 transition-colors">
                     <p className="font-semibold text-slate-800">Upcoming Session Reminder</p>
-                    <p className="text-slate-500 text-[11px] mt-0.5">HackMuthayammal 2026 starts Nov 18 at Tech Park Lab 4.</p>
+                    <p className="text-slate-500 text-[11px] mt-0.5">Campus Hackathon 2026 starts Nov 18 at Tech Park Lab 4.</p>
                     <span className="text-[10px] text-slate-400 mt-1 block">Yesterday</span>
                   </div>
                 </div>

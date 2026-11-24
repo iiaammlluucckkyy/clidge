@@ -62,8 +62,8 @@ export const CAMPUS_ZONES = [
 ];
 
 export const CAMPUS_METRICS = {
-  institution: 'Muthayammal Engineering College (Autonomous)',
-  location: 'Rasipuram, Tamil Nadu, India',
+  institution: 'Smart Campus Institution',
+  location: 'Engineering Campus Grounds',
   campusRadiusMeters: 850,
   gpsSamplingIntervalSeconds: 15,
   lastCalibration: 'Today, Live Demo Stream',
