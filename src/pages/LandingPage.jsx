@@ -105,7 +105,7 @@ export const LandingPage = () => {
                   onClick={handleStudentLogin}
                   className="text-xs font-bold text-slate-700 hover:text-navy-950 px-3 py-2 rounded-xl transition-colors"
                 >
-                  Student Sign In
+                  Enter Student Portal
                 </button>
                 <Button
                   variant="cyan"
@@ -113,7 +113,7 @@ export const LandingPage = () => {
                   onClick={handleTeacherLogin}
                   icon={Users}
                 >
-                  Faculty Portal
+                  Enter Faculty Portal
                 </Button>
               </>
             )}
