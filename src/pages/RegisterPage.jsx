@@ -58,7 +58,7 @@ export const RegisterPage = () => {
   const validate = () => {
     if (!formData.name.trim()) return 'Full name is required.';
     if (!formData.email.trim() || !formData.email.includes('@')) {
-      return 'Please enter a valid college email address.';
+      return 'Please enter a valid email address (e.g. yourname@gmail.com or college email).';
     }
     if (!formData.registrationNumber.trim()) {
       return 'Registration number is required (e.g., 731622CSR045).';
@@ -142,7 +142,7 @@ export const RegisterPage = () => {
               Create Student Account
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              Register with your institutional email to access event geofencing.
+              Register with your own active email (Gmail, college email, etc.) to receive verification and updates.
             </p>
           </div>
 
@@ -177,14 +177,14 @@ export const RegisterPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block font-bold text-navy-900 uppercase tracking-wider mb-1.5 text-[11px]">
-                  Institutional Email *
+                  Email Address (Gmail / College Email) *
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     required
-                    placeholder="name.reg@college.edu.in"
+                    placeholder="e.g. yourname@gmail.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-navy-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"

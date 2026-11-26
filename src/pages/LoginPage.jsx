@@ -231,14 +231,14 @@ export const LoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider mb-1.5">
-                Official Email Address
+                Email Address (Gmail / College Email)
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   required
-                  placeholder={portal === 'student' ? 'student.reg@college.edu.in' : 'faculty@college.edu.in'}
+                  placeholder={portal === 'student' ? 'e.g. yourname@gmail.com' : 'e.g. faculty@gmail.com or college email'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-navy-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
@@ -479,12 +479,12 @@ export const LoginPage = () => {
 
           <div>
             <label className="block font-bold text-navy-900 mb-1 uppercase text-[10px]">
-              Institutional Email Address *
+              Email Address (Gmail / College Email) *
             </label>
             <input
               type="email"
               required
-              placeholder="name@college.edu.in"
+              placeholder="e.g. yourname@gmail.com"
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-navy-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
