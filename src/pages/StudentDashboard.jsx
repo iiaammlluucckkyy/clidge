@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useEvents } from '../context/EventContext';
 import { useLocation } from '../context/LocationContext';
+import { useAttendance } from '../context/AttendanceContext';
 import WelcomeBanner from '../components/dashboard/WelcomeBanner';
 import StatCard from '../components/common/StatCard';
 import AttendanceRing from '../components/dashboard/AttendanceRing';
@@ -50,9 +51,22 @@ export const StudentDashboard = () => {
   const routeLocation = useRouteLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
+  const { studentHistory } = useAttendance();
 
   const [activeQRModalEvent, setActiveQRModalEvent] = useState(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+
+  // Compute real dynamic attendance metrics for the current student
+  const attendedSessionsCount = Array.isArray(studentHistory)
+    ? studentHistory.filter(h => h.check_in_time || h.checkInTime).length
+    : 0;
+  const totalJoinedCount = studentJoinedEvents.length;
+  const calculatedPercentage = totalJoinedCount > 0
+    ? Math.round((attendedSessionsCount / totalJoinedCount) * 100)
+    : (Number(currentUser?.attendanceStats?.overallPercentage) || 0);
+  const hoursLogged = currentUser?.attendanceStats?.hoursMonitored !== undefined
+    ? Number(currentUser.attendanceStats.hoursMonitored)
+    : (attendedSessionsCount * 1.5);
 
   // Background Location Sharing:
   // Automatically runs location sharing silently in the background when joined to active sessions.
@@ -108,8 +122,13 @@ export const StudentDashboard = () => {
         actionLabel="Scan Event QR Code"
         actionIcon={QrCode}
         onActionClick={() => {
-          const activeEvent = studentJoinedEvents.find(e => e.status === 'Ongoing') || events[0];
-          if (activeEvent) handleOpenQR(activeEvent);
+          const activeEvent = studentJoinedEvents.find(e => e.status === 'Ongoing') || studentJoinedEvents[0];
+          if (activeEvent) {
+            handleOpenQR(activeEvent);
+          } else if (events && events.length > 0) {
+            setSelectedEventId(events[0].id || events[0].eventId);
+            setDetailsModalOpen(true);
+          }
         }}
       />
 
@@ -143,31 +162,31 @@ export const StudentDashboard = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
             <StatCard
               title="Overall Attendance"
-              value={`${currentUser?.attendanceStats?.overallPercentage || 94.2}%`}
-              subtitle="Min 75% required"
-              trend="+2.4%"
+              value={`${calculatedPercentage}%`}
+              subtitle={totalJoinedCount > 0 ? (calculatedPercentage >= 75 ? "Compliance Met (≥ 75%)" : "Needs Attendance ( < 75%)") : "New Student (No events yet)"}
+              trend={totalJoinedCount > 0 ? `${attendedSessionsCount}/${totalJoinedCount} sessions` : "Ready to Start"}
               icon={Award}
               colorScheme="cyan"
             />
             <StatCard
               title="Enrolled Events"
-              value={studentJoinedEvents.length}
+              value={totalJoinedCount}
               subtitle="Active campus sessions"
               icon={CalendarCheck2}
               colorScheme="navy"
             />
             <StatCard
               title="Hours Logged"
-              value={`${currentUser?.attendanceStats?.hoursMonitored || 78.5} hrs`}
+              value={`${hoursLogged.toFixed(1)} hrs`}
               subtitle="Verified presence"
               icon={Clock}
               colorScheme="emerald"
             />
             <StatCard
               title="Attendance Status"
-              value="Ready to Scan"
-              subtitle="Dynamic QR Token"
-              trend="Verification Ready"
+              value={totalJoinedCount > 0 ? "Ready to Scan" : "Not Enrolled"}
+              subtitle={totalJoinedCount > 0 ? "Dynamic QR Token" : "Join an event first"}
+              trend={totalJoinedCount > 0 ? "Verification Ready" : "Standby"}
               icon={QrCode}
               colorScheme="cyan"
             />
@@ -284,11 +303,11 @@ export const StudentDashboard = () => {
 
           {/* Attendance Summary & Analytics */}
           <AttendanceRing
-            percentage={currentUser?.attendanceStats?.overallPercentage}
-            eventsAttended={currentUser?.attendanceStats?.eventsAttended}
-            totalRegistered={studentJoinedEvents.length || currentUser?.attendanceStats?.totalRegistered}
-            hoursMonitored={currentUser?.attendanceStats?.hoursMonitored}
-            categories={currentUser?.attendanceStats?.categoryBreakdown}
+            percentage={calculatedPercentage}
+            eventsAttended={attendedSessionsCount}
+            totalRegistered={totalJoinedCount}
+            hoursMonitored={hoursLogged.toFixed(1)}
+            categories={currentUser?.attendanceStats?.categoryBreakdown || []}
           />
         </>
       )}
