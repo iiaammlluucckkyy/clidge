@@ -5,6 +5,7 @@ import Navbar from './Navbar';
 import MobileNav from './MobileNav';
 import OfflineSyncBanner from '../common/OfflineSyncBanner';
 import { Info, Sparkles } from 'lucide-react';
+import BRANDING from '../../config/branding';
 
 export const AppLayout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,12 +15,12 @@ export const AppLayout = () => {
       {/* Official Institution Header Bar */}
       <div className="bg-navy-950 text-white text-xs px-4 sm:px-6 py-2 border-b border-navy-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-cyan-400">CLIDGE Smart Campus Network</span>
-          <span className="text-slate-400 hidden sm:inline">• Automated Location & Event Verification</span>
+          <span className="font-bold text-cyan-400">{BRANDING.platformName} Smart Campus Network</span>
+          <span className="text-slate-400 hidden sm:inline">• {BRANDING.institutionName} • Automated Location & Event Verification</span>
         </div>
         <div className="flex items-center gap-2 text-[11px] text-slate-300">
           <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span>Campus Geofence Active</span>
+          <span>{BRANDING.geofenceLabel}</span>
         </div>
       </div>
 
@@ -42,7 +43,7 @@ export const AppLayout = () => {
           {/* Footer */}
           <footer className="border-t border-slate-200/80 bg-white/70 backdrop-blur px-6 py-4 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
             <p>
-              © 2026 <strong>CLIDGE</strong> • Department of Computer Science & Engineering. Built with React.js & Vite.
+              © 2026 <strong>{BRANDING.platformName}</strong> • {BRANDING.department} ({BRANDING.institutionCode}). Built with React.js & Vite.
             </p>
             <div className="flex items-center gap-4 text-[11px]">
               <span className="text-emerald-600 font-semibold flex items-center gap-1">

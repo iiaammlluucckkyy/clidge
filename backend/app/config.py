@@ -15,10 +15,14 @@ class Config:
     STALE_THRESHOLD_SECONDS = int(os.getenv('LOCATION_STALE_THRESHOLD_SECONDS', 300))
     
     # Allowed Frontend Origins for CORS
+    # In production, defaults strictly to Vercel production frontend unless explicitly overridden
+    _DEFAULT_CORS_PROD = 'https://clidge.vercel.app'
+    _DEFAULT_CORS_DEV = 'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://clidge.vercel.app'
+    
     CORS_ORIGINS = [
         origin.strip() for origin in os.getenv(
             'CORS_ORIGINS',
-            'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://clidge.vercel.app'
+            _DEFAULT_CORS_PROD if os.getenv('FLASK_ENV') == 'production' else _DEFAULT_CORS_DEV
         ).split(',') if origin.strip()
     ]
 

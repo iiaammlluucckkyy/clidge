@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/common/Button';
+import BRANDING from '../config/branding';
 
 export const LandingPage = () => {
   const { isAuthenticated, currentUser, currentRole } = useAuth();
@@ -68,14 +69,14 @@ export const LandingPage = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xl font-extrabold tracking-tight text-navy-950">CLIDGE</span>
+                <span className="text-xl font-extrabold tracking-tight text-navy-950">{BRANDING.platformName}</span>
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   LIVE
                 </span>
               </div>
               <p className="text-[10px] font-semibold text-cyan-600 tracking-wider uppercase">
-                Smart Campus Presence System
+                {BRANDING.platformSubtitle}
               </p>
             </div>
           </Link>
@@ -472,8 +473,8 @@ export const LandingPage = () => {
             <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center">
               <img src="/logo.png" alt="CLidge" className="w-full h-full object-contain" />
             </div>
-            <span className="font-bold text-navy-950">CLIDGE</span>
-            <span className="text-slate-400">• Smart Student Location Tracking & Campus Event Monitoring System</span>
+            <span className="font-bold text-navy-950">{BRANDING.platformName}</span>
+            <span className="text-slate-400">• {BRANDING.institutionName} • {BRANDING.platformSubtitle}</span>
           </div>
           <div className="text-right text-[11px] text-slate-400">
             <p>Smart Student Tracking & Campus Geofence System</p>

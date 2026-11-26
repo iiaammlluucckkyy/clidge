@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, jsonify
 from flask_cors import CORS
 from app.config import Config
@@ -7,6 +8,12 @@ from app.firebase_admin_client import init_firebase_admin
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    # Configure institutional logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+    )
 
     # Initialize Firebase Admin SDK
     init_firebase_admin()
@@ -19,6 +26,25 @@ def create_app(config_class=Config):
             "allow_headers": ["Content-Type", "Authorization"]
         }
     })
+
+    # Security Headers Hook
+    @app.after_request
+    def set_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        return response
+
+    # Root route for cloud uptime monitoring pingers (e.g. Render / Cron / Statuspage)
+    @app.route('/')
+    def root_ping():
+        return jsonify({
+            "service": "CLIDGE Smart Campus Presence Platform",
+            "status": "online",
+            "health": "/api/health",
+            "environment": Config.FLASK_ENV
+        }), 200
 
     # Register blueprints
     from app.routes.locations import locations_bp
