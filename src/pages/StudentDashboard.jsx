@@ -150,9 +150,9 @@ export const StudentDashboard = () => {
               colorScheme="cyan"
             />
             <StatCard
-              title="Today's Classes"
+              title="Enrolled Events"
               value={studentJoinedEvents.length}
-              subtitle="Enrolled sessions"
+              subtitle="Active campus sessions"
               icon={CalendarCheck2}
               colorScheme="navy"
             />

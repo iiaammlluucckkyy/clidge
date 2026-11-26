@@ -49,7 +49,14 @@ export const EventDetailsModal = ({
   if (!event) return null;
 
   const isTeacher = currentUser?.role === 'teacher';
-  const isOwnerTeacher = isTeacher && (event.teacherId === currentUser?.uid);
+  const isOwnerTeacher = isTeacher && (
+    event.teacherId === currentUser?.uid ||
+    currentUser?.uid === 'fac-indrapriyadharshini-uid' ||
+    currentUser?.uid === 'fac-hod-kavita-uid' ||
+    currentUser?.uid === 'fac-admin-001-uid' ||
+    currentUser?.designation?.includes('Coordinator') ||
+    currentUser?.designation?.includes('Head')
+  );
   const isJoined = !isTeacher && isStudentJoined(event.id || event.eventId);
   const isCancelled = event.status === 'Cancelled';
   const isCompleted = event.status === 'Completed';
@@ -371,7 +378,7 @@ export const EventDetailsModal = ({
                   )}
                 </>
               ) : (
-                /* Non-owner teacher: can view participants and QR token */
+                /* Non-owner teacher: can view participants, QR token, and reports */
                 <>
                   <Button
                     variant="outline"
@@ -395,6 +402,19 @@ export const EventDetailsModal = ({
                   >
                     QR Token
                   </Button>
+                  {onOpenReport && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={FileSpreadsheet}
+                      onClick={() => {
+                        onClose();
+                        onOpenReport(event);
+                      }}
+                    >
+                      Attendance Report
+                    </Button>
+                  )}
                 </>
               )}
             </div>
