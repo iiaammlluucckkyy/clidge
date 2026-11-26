@@ -6,7 +6,9 @@ import {
   registerStudent,
   loginUser,
   logoutUser,
-  provisionTeacherAccount
+  provisionTeacherAccount,
+  requestPasswordReset,
+  sendVerificationEmail
 } from './src/services/authService.js';
 
 // Setup mock browser localStorage for headless Node test environment
@@ -166,6 +168,42 @@ const runTests = async () => {
     assert(newTeacher.role === 'teacher', 'Authorized admin successfully provisioned new faculty account');
   } catch (err) {
     assert(false, `Authorized provisioning error: ${err.message}`);
+  }
+
+  // Test 8: Password Reset Flow (Self-Service)
+  console.log('\n--- TEST 8: Password Reset Request ---');
+  try {
+    const resetResult = await requestPasswordReset('lakshmanaraja@clidge.edu.in');
+    assert(resetResult.success === true, 'Password reset request accepted for valid account');
+    assert(typeof resetResult.message === 'string' && resetResult.message.length > 0, 'Password reset returned institutional guidance message');
+
+    // Verify reset works by logging in with temporary reset password
+    const resetLogin = await loginUser({
+      email: 'lakshmanaraja@clidge.edu.in',
+      password: 'Clidge@2026',
+      requiredRole: 'student'
+    });
+    assert(resetLogin.email === 'lakshmanaraja@clidge.edu.in', 'Student successfully logged in after password recovery');
+  } catch (err) {
+    assert(false, `Password reset request failed: ${err.message}`);
+  }
+
+  try {
+    // Non-existent email should be rejected
+    await requestPasswordReset('unknown.nonexistent@clidge.edu.in');
+    assert(false, 'Should reject password reset for non-existent account');
+  } catch (err) {
+    assert(err.message.includes('No account found'), 'Non-existent account password reset rejected with clear error');
+  }
+
+  // Test 9: Email Verification Flow
+  console.log('\n--- TEST 9: Email Verification Flow ---');
+  try {
+    const verifyResult = await sendVerificationEmail();
+    assert(verifyResult.success === true, 'Verification email dispatch triggered successfully');
+    assert(typeof verifyResult.message === 'string', 'Verification email status message received');
+  } catch (err) {
+    assert(false, `Email verification failed: ${err.message}`);
   }
 
   console.log(`\n========================================`);

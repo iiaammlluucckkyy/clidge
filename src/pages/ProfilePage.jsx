@@ -19,15 +19,29 @@ import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 
 export const ProfilePage = () => {
-  const { currentRole, currentUser, logout } = useAuth();
+  const { currentRole, currentUser, logout, sendVerificationEmail } = useAuth();
   const { isSharing, toggleSharing } = useLocation();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'privacy' | 'academic'
+  const [verifyNotice, setVerifyNotice] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleVerifyEmail = async () => {
+    setIsVerifying(true);
+    try {
+      const res = await sendVerificationEmail();
+      setVerifyNotice(res.message);
+    } catch (err) {
+      setVerifyNotice(err.message || 'Failed to send verification email.');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const regNo = currentUser?.registrationNumber || currentUser?.regNumber || 'REG-PENDING';
@@ -60,7 +74,7 @@ export const ProfilePage = () => {
               </p>
               <p className="text-xs text-slate-300 flex items-center gap-1.5 pt-0.5">
                 <Building className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{currentUser?.department || 'Computer Science and Engineering'} • MEC</span>
+                <span>{currentUser?.department || 'Computer Science and Engineering'}</span>
               </p>
             </div>
           </div>
@@ -127,10 +141,25 @@ export const ProfilePage = () => {
                 <span className="text-slate-500">Full Name:</span>
                 <span className="font-bold text-navy-900">{currentUser?.name}</span>
               </div>
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <span className="text-slate-500">Official Email:</span>
-                <span className="font-semibold text-cyan-700">{currentUser?.email}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-cyan-700">{currentUser?.email}</span>
+                  <button
+                    onClick={handleVerifyEmail}
+                    disabled={isVerifying}
+                    className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-bold transition-colors"
+                  >
+                    {isVerifying ? 'Sending...' : 'Verify Email'}
+                  </button>
+                </div>
               </div>
+              {verifyNotice && (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{verifyNotice}</span>
+                </div>
+              )}
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
                 <span className="text-slate-500">Verified Role:</span>
                 <span className="font-bold text-emerald-700 capitalize flex items-center gap-1">

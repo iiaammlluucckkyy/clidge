@@ -19,7 +19,7 @@ import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 
 export const LoginPage = () => {
-  const { login, provisionTeacher } = useAuth();
+  const { login, provisionTeacher, requestPasswordReset } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,6 +33,11 @@ export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Forgot Password Modal
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetStatus, setResetStatus] = useState({ loading: false, error: '', success: '' });
 
   // Admin Teacher Provisioning Modal
   const [provisionModalOpen, setProvisionModalOpen] = useState(false);
@@ -108,6 +113,25 @@ export const LoginPage = () => {
       setProvisionStatus({
         loading: false,
         error: err.message || 'Failed to provision teacher account.',
+        success: ''
+      });
+    }
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    setResetStatus({ loading: true, error: '', success: '' });
+    try {
+      const res = await requestPasswordReset(resetEmail);
+      setResetStatus({
+        loading: false,
+        error: '',
+        success: res.message || 'Password reset link sent! Check your institutional inbox.'
+      });
+    } catch (err) {
+      setResetStatus({
+        loading: false,
+        error: err.message || 'Failed to request password reset.',
         success: ''
       });
     }
@@ -227,6 +251,17 @@ export const LoginPage = () => {
                 <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
                   Password
                 </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetEmail(email || '');
+                    setResetStatus({ loading: false, error: '', success: '' });
+                    setForgotModalOpen(true);
+                  }}
+                  className="text-[11px] text-cyan-600 hover:text-cyan-800 font-semibold transition-colors"
+                >
+                  Forgot password?
+                </button>
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -412,6 +447,61 @@ export const LoginPage = () => {
               disabled={provisionStatus.loading}
             >
               {provisionStatus.loading ? 'Provisioning...' : 'Provision Teacher Account'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Forgot Password Modal */}
+      <Modal
+        isOpen={forgotModalOpen}
+        onClose={() => setForgotModalOpen(false)}
+        title="Reset Account Password"
+      >
+        <form onSubmit={handlePasswordReset} className="space-y-4 text-xs">
+          <p className="text-slate-600 leading-relaxed">
+            Enter your registered institutional email address. We will verify your account and provide password recovery instructions.
+          </p>
+
+          {resetStatus.error && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{resetStatus.error}</span>
+            </div>
+          )}
+
+          {resetStatus.success && (
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{resetStatus.success}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="block font-bold text-navy-900 mb-1 uppercase text-[10px]">
+              Institutional Email Address *
+            </label>
+            <input
+              type="email"
+              required
+              placeholder="name@college.edu.in"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-navy-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setForgotModalOpen(false)}>
+              Close
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={resetStatus.loading}
+            >
+              {resetStatus.loading ? 'Verifying...' : 'Request Password Reset'}
             </Button>
           </div>
         </form>

@@ -6,6 +6,8 @@ import {
   logoutUser as apiLogoutUser,
   getPersistedSession,
   provisionTeacherAccount as apiProvisionTeacher,
+  requestPasswordReset as apiRequestPasswordReset,
+  sendVerificationEmail as apiSendVerificationEmail,
   isLiveFirebase
 } from '../services/authService';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -47,7 +49,7 @@ export const AuthProvider = ({ children }) => {
               ...firestoreData
             };
             setCurrentUser(fullProfile);
-            localStorage.setItem('clidge_current_session_v2', JSON.stringify(fullProfile));
+            localStorage.setItem('clidge_current_session_v4', JSON.stringify(fullProfile));
           }
         } catch (err) {
           console.warn('Firestore user fetch onAuthStateChanged:', err);
@@ -121,6 +123,20 @@ export const AuthProvider = ({ children }) => {
     return await apiProvisionTeacher(teacherData);
   };
 
+  /**
+   * Request Password Reset
+   */
+  const requestPasswordReset = async (email) => {
+    return await apiRequestPasswordReset(email);
+  };
+
+  /**
+   * Send Email Verification
+   */
+  const sendVerificationEmail = async () => {
+    return await apiSendVerificationEmail();
+  };
+
   const currentRole = currentUser?.role || null;
   const isAuthenticated = Boolean(currentUser);
 
@@ -137,6 +153,8 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         provisionTeacher,
+        requestPasswordReset,
+        sendVerificationEmail,
         setAuthError
       }}
     >
