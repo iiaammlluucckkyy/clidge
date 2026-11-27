@@ -91,7 +91,7 @@ export const LocationSharingWidget = () => {
               {getStalenessBadge()}
             </div>
             <p className="text-xs text-slate-500">
-              Active: <strong className="text-navy-900 font-semibold">{activeApprovedEvent?.title || 'Campus Event Session'}</strong>
+              Active: <strong className="text-navy-900 font-semibold">{activeApprovedEvent?.title || 'Campus Standby (MEC Rasipuram)'}</strong>
             </p>
           </div>
         </div>
@@ -126,9 +126,9 @@ export const LocationSharingWidget = () => {
         {/* Venue Zone */}
         <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Geofenced Zone</p>
-          <p className="text-xs font-bold text-navy-900 truncate mt-0.5">{currentZone}</p>
+          <p className="text-xs font-bold text-navy-900 truncate mt-0.5">{currentZone || 'MEC Campus'}</p>
           <span className="text-[10px] font-mono text-cyan-700 bg-cyan-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-            {zoneCode} ({activeApprovedEvent?.radius || 65}m radius)
+            {zoneCode || 'MEC-CAMPUS'} {activeApprovedEvent ? `(${activeApprovedEvent.radius}m radius)` : '(Campus Standby)'}
           </span>
         </div>
 

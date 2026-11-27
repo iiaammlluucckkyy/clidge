@@ -25,6 +25,7 @@ import {
 import { useEvents } from '../../context/EventContext';
 import { useAuth } from '../../context/AuthContext';
 import { flaskApi } from '../../services/flaskApi';
+import { CAMPUS_ZONES, getCampusLandmark } from '../../data/campusZones.js';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 
@@ -67,6 +68,31 @@ const createVenueIcon = (venueName) => {
         </div>
         <div style="width:16px; height:16px; background:#06b6d4; border:3px solid white; border-radius:50%; box-shadow:0 0 12px #06b6d4;"></div>
         <div style="width:2px; height:6px; background:#06b6d4;"></div>
+      </div>
+    `,
+    iconSize: [0, 0]
+  });
+};
+
+// Custom Leaflet DivIcon for Campus Landmarks (Hostel, Canteen, Auditorium, Labs)
+const createZoneIcon = (zone) => {
+  let emoji = '🏛️';
+  if (zone.type.includes('Canteen') || zone.type.includes('Cafeteria')) emoji = '🍴';
+  else if (zone.type.includes('Hostel')) emoji = '🏢';
+  else if (zone.type.includes('Lab')) emoji = '🔬';
+  else if (zone.type.includes('Seminar')) emoji = '💻';
+  else if (zone.type.includes('Library')) emoji = '📚';
+  else if (zone.type.includes('Sports')) emoji = '⚽';
+
+  return L.divIcon({
+    className: 'custom-zone-landmark',
+    html: `
+      <div style="display:flex; flex-direction:column; align-items:center; transform: translate(-50%, -100%); pointer-events:auto;">
+        <div style="background:#0f172a; color:${zone.color}; border:1.5px solid ${zone.color}; padding:2px 6px; border-radius:8px; font-size:9px; font-weight:700; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.4); display:flex; align-items:center; gap:3px;">
+          <span>${emoji}</span>
+          <span>${zone.name.split(' (')[0]}</span>
+        </div>
+        <div style="width:8px; height:8px; background:${zone.color}; border:1.5px solid white; border-radius:50%;"></div>
       </div>
     `,
     iconSize: [0, 0]
@@ -126,7 +152,7 @@ export const TeacherLiveMap = () => {
   const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'INSIDE' | 'OUTSIDE' | 'OUTDATED'
   const [searchTerm, setSearchTerm] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [mapCenter, setMapCenter] = useState([11.4982, 78.1634]);
+  const [mapCenter, setMapCenter] = useState([11.4450, 78.2264]);
   const [mapZoom, setMapZoom] = useState(17);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(10); // seconds
 
@@ -184,8 +210,8 @@ export const TeacherLiveMap = () => {
 
       if (result && result.locations) {
         // Compute geofence distance for each student relative to active event center
-        const eventLat = Number(activeEvent.latitude) || 11.4982;
-        const eventLng = Number(activeEvent.longitude) || 78.1634;
+        const eventLat = Number(activeEvent.latitude) || 11.4450;
+        const eventLng = Number(activeEvent.longitude) || 78.2264;
         const eventRadius = Number(activeEvent.radius) || Number(activeEvent.geofenceRadius) || 65;
 
         const processed = result.locations.map(loc => {
@@ -208,8 +234,8 @@ export const TeacherLiveMap = () => {
       } else {
         // 2. Direct Firestore fallback: retrieve authorised participants for this event
         const roster = await fetchParticipants(eventId);
-        const eventLat = Number(activeEvent.latitude) || 11.4982;
-        const eventLng = Number(activeEvent.longitude) || 78.1634;
+        const eventLat = Number(activeEvent.latitude) || 11.4450;
+        const eventLng = Number(activeEvent.longitude) || 78.2264;
         const eventRadius = Number(activeEvent.radius) || Number(activeEvent.geofenceRadius) || 65;
 
         // Map participants to student location structure without fabricated markers
@@ -308,8 +334,8 @@ export const TeacherLiveMap = () => {
   const outsideCount = studentLocations.filter(s => !s.is_inside_geofence && s.latitude).length;
   const outdatedCount = studentLocations.filter(s => s.status === 'OUTDATED' || s.status === 'UNAVAILABLE').length;
 
-  const eventLat = Number(activeEvent?.latitude) || 11.4982;
-  const eventLng = Number(activeEvent?.longitude) || 78.1634;
+  const eventLat = Number(activeEvent?.latitude) || 11.4450;
+  const eventLng = Number(activeEvent?.longitude) || 78.2264;
   const eventRadius = Number(activeEvent?.radius) || Number(activeEvent?.geofenceRadius) || 65;
 
   return (
@@ -448,6 +474,35 @@ export const TeacherLiveMap = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
+            {/* Campus Landmark Zones (Hostels, Canteen, Auditorium, Labs, Library, Sports) */}
+            {CAMPUS_ZONES.map((zone) => (
+              <React.Fragment key={zone.id}>
+                <Circle
+                  center={[zone.center.lat, zone.center.lng]}
+                  radius={zone.radiusMeters}
+                  pathOptions={{
+                    color: zone.color,
+                    fillColor: zone.color,
+                    fillOpacity: 0.08,
+                    weight: 1.5,
+                    dashArray: '4, 4'
+                  }}
+                />
+                <Marker
+                  position={[zone.center.lat, zone.center.lng]}
+                  icon={createZoneIcon(zone)}
+                >
+                  <Popup>
+                    <div className="p-2 text-navy-950 text-xs space-y-1">
+                      <p className="font-bold text-navy-900">{zone.name}</p>
+                      <p className="text-slate-600">{zone.building}</p>
+                      <p className="font-mono text-cyan-700 text-[11px]">{zone.code} • Radius: {zone.radiusMeters}m</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            ))}
+
             {/* 1. Geofence Boundary Circle around Venue */}
             <Circle
               center={[eventLat, eventLng]}
@@ -496,6 +551,7 @@ export const TeacherLiveMap = () => {
               if (!std.latitude || !std.longitude) return null;
               const isSelected = selectedStudent?.student_id === std.student_id;
               const isInside = std.is_inside_geofence;
+              const stdLandmark = getCampusLandmark(Number(std.latitude), Number(std.longitude));
 
               return (
                 <React.Fragment key={std.student_id}>
@@ -538,6 +594,12 @@ export const TeacherLiveMap = () => {
                           }`}>
                             {std.status}
                           </span>
+                        </div>
+
+                        {/* Current Physical Campus Landmark */}
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-navy-950 bg-cyan-50 p-2 rounded-xl border border-cyan-100">
+                          <MapPin className="w-3.5 h-3.5 text-cyan-700 flex-shrink-0" />
+                          <span>{stdLandmark.landmark}</span>
                         </div>
 
                         {/* Coordinates & Accuracy */}
@@ -638,6 +700,12 @@ export const TeacherLiveMap = () => {
                             {std.student_name}
                           </p>
                           <p className="font-mono text-[10px] text-cyan-400">{std.student_reg_number}</p>
+                          {std.latitude && std.longitude && (
+                            <p className="text-[11px] font-semibold text-cyan-300 flex items-center gap-1 mt-1 truncate">
+                              <MapPin className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+                              <span>{getCampusLandmark(Number(std.latitude), Number(std.longitude)).landmark}</span>
+                            </p>
+                          )}
                         </div>
 
                         {/* Status Badge */}

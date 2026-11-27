@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { flaskApi } from '../services/flaskApi';
 import { useAuth } from './AuthContext';
+import { getCampusLandmark, calculateHaversineMeters } from '../data/campusZones.js';
 
 const LocationContext = createContext();
 
@@ -15,31 +16,23 @@ export const LocationProvider = ({ children }) => {
   // GPS Sharing State
   // Rule 1: Starts as false. Browser permission is ONLY requested after student joins approved event and explicitly enables sharing.
   const [isSharing, setIsSharing] = useState(false);
-  const [geofenceStatus, setGeofenceStatus] = useState('Offline'); // 'Inside Venue' | 'Outside Bounds' | 'Offline' | 'Session Ended (GPS Off)'
+  const [geofenceStatus, setGeofenceStatus] = useState('Standby'); // 'Inside Venue' | 'Outside Bounds' | 'Offline' | 'Standby' | 'Session Ended (GPS Off)'
   const [stalenessStatus, setStalenessStatus] = useState('UNAVAILABLE'); // 'LIVE' | 'OUTDATED' | 'UNAVAILABLE'
   
-  // Current coordinates
-  const [coordinates, setCoordinates] = useState({ lat: 11.49824, lng: 78.16345 });
-  const [accuracy, setAccuracy] = useState(4.2); // meters
-  const [batteryLevel, setBatteryLevel] = useState(84);
+  // Current coordinates (calibrated to Muthayammal Engineering College campus center)
+  const [coordinates, setCoordinates] = useState({ lat: 11.4450, lng: 78.2264 });
+  const [accuracy, setAccuracy] = useState(3.5); // meters
+  const [batteryLevel, setBatteryLevel] = useState(88);
   const [lastPingTime, setLastPingTime] = useState(null);
   const [lastKnownLocation, setLastKnownLocation] = useState(null);
   const [pingCount, setPingCount] = useState(0);
 
-  // Active Approved Event for student session
-  const [activeApprovedEvent, setActiveApprovedEvent] = useState({
-    id: 'evt-2026-001',
-    title: 'National Level Workshop on Generative AI & Autonomous Agents',
-    status: 'Ongoing',
-    venue: 'Main Auditorium (Kamarajar Hall)',
-    latitude: 11.4982,
-    longitude: 78.1634,
-    radius: 65
-  });
+  // Active Approved Event for student session (strictly null until student registers/joins an event)
+  const [activeApprovedEvent, setActiveApprovedEvent] = useState(null);
 
   // Venue & Zone details
-  const [currentZone, setCurrentZone] = useState('Main Auditorium (Kamarajar Hall)');
-  const [zoneCode, setZoneCode] = useState('ZONE-A1');
+  const [currentZone, setCurrentZone] = useState('MEC Campus Standby');
+  const [zoneCode, setZoneCode] = useState('MEC-CAMPUS');
 
   // Error & Permission states
   const [gpsError, setGpsError] = useState(null);
@@ -177,18 +170,33 @@ export const LocationProvider = ({ children }) => {
         setCoordinates({ lat: latitude, lng: longitude });
         setAccuracy(Math.round(acc));
         setGpsError(null);
+
+        // Resolve real-time campus landmark
+        const landmark = getCampusLandmark(latitude, longitude);
+        setCurrentZone(landmark.landmark);
+        setZoneCode(landmark.code);
+
+        // Update geofence status if active event exists
+        if (activeApprovedEvent) {
+          const dist = calculateHaversineMeters(latitude, longitude, activeApprovedEvent.latitude, activeApprovedEvent.longitude);
+          const isInside = dist !== null ? dist <= (activeApprovedEvent.radius || 65) : false;
+          setGeofenceStatus(isInside ? 'Inside Venue' : 'Outside Bounds');
+        } else {
+          setGeofenceStatus('Standby');
+        }
+
         transmitLocationToBackend(latitude, longitude, acc);
       },
       (error) => {
         let message = 'GPS error occurred.';
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            message = 'GPS permission denied by user. Location sharing paused.';
+            message = 'GPS permission denied by user. Please allow location access in your browser to verify campus attendance.';
             setIsSharing(false);
             setGeofenceStatus('Offline');
             break;
           case error.POSITION_UNAVAILABLE:
-            message = 'GPS position unavailable. Please verify device location services.';
+            message = 'GPS position unavailable. Please verify device location services are turned on.';
             break;
           case error.TIMEOUT:
             message = 'GPS signal request timed out. Retrying on next interval.';
@@ -200,11 +208,28 @@ export const LocationProvider = ({ children }) => {
       },
       {
         enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 30000
+        timeout: 10000,
+        maximumAge: 0 // Always acquire live satellite/hardware fix
       }
     );
-  }, [transmitLocationToBackend]);
+  }, [transmitLocationToBackend, activeApprovedEvent]);
+
+  // Initial passive hardware GNSS fix on mount
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy: acc } = pos.coords;
+        setCoordinates({ lat: latitude, lng: longitude });
+        setAccuracy(Math.round(acc));
+        const landmark = getCampusLandmark(latitude, longitude);
+        setCurrentZone(landmark.landmark);
+        setZoneCode(landmark.code);
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  }, []);
 
   // Periodic heartbeat runner when sharing is enabled
   useEffect(() => {
@@ -306,33 +331,78 @@ export const LocationProvider = ({ children }) => {
     captureBrowserPosition();
   };
 
-  // Simulation helper for Viva demonstration
-  const simulateMovement = (status, newZone = 'Main Auditorium (Kamarajar Hall)') => {
+  // Simulation helper for Viva demonstration & Testing across MEC Campus landmarks
+  const simulateMovement = (target = 'toggle', optionalZone = null) => {
     if (activeApprovedEvent && (activeApprovedEvent.status === 'Completed' || activeApprovedEvent.status === 'Cancelled')) {
       alert('Event has ended. Location tracking is disabled.');
       return;
     }
 
-    setGeofenceStatus(status);
-    setCurrentZone(newZone);
+    let newLat = 11.4448;
+    let newLng = 78.2263;
+    let newZone = 'Main Auditorium (Kamarajar Hall)';
+    let newCode = 'ZONE-A1';
+    let newStatus = 'Inside Venue';
 
-    let newLat = 11.49824;
-    let newLng = 78.16345;
-
-    if (status === 'Outside Bounds') {
-      newLat = 11.49610;
-      newLng = 78.16120;
-      setCoordinates({ lat: newLat, lng: newLng });
-      setZoneCode('ZONE-OUT');
-    } else if (status === 'Inside Venue') {
-      newLat = 11.49824;
-      newLng = 78.16345;
-      setCoordinates({ lat: newLat, lng: newLng });
-      setZoneCode('ZONE-A1');
+    if (target === 'Canteen' || target === 'zone-canteen') {
+      newLat = 11.4447;
+      newLng = 78.2260;
+      newZone = 'Campus Canteen & Food Court';
+      newCode = 'ZONE-F1';
+      newStatus = activeApprovedEvent ? 'Outside Bounds' : 'Standby';
+    } else if (target === 'Hostel' || target === 'zone-hostel') {
+      newLat = 11.4456;
+      newLng = 78.2272;
+      newZone = 'Student Hostels (Boys & Girls Blocks)';
+      newCode = 'ZONE-H1';
+      newStatus = activeApprovedEvent ? 'Outside Bounds' : 'Standby';
+    } else if (target === 'Auditorium' || target === 'zone-auditorium' || target === 'Inside Venue') {
+      newLat = 11.4448;
+      newLng = 78.2263;
+      newZone = 'Main Auditorium (Kamarajar Hall)';
+      newCode = 'ZONE-A1';
+      newStatus = 'Inside Venue';
+    } else if (target === 'Outside Bounds' || target === 'outside') {
+      newLat = 11.4410;
+      newLng = 78.2210;
+      newZone = 'Off-Campus Perimeter (Rasipuram)';
+      newCode = 'ZONE-OUT';
+      newStatus = 'Outside Bounds';
+    } else {
+      // Toggle rotation between Auditorium -> Canteen -> Hostel -> Outside
+      if (zoneCode === 'ZONE-A1') {
+        newLat = 11.4447;
+        newLng = 78.2260;
+        newZone = 'Campus Canteen & Food Court';
+        newCode = 'ZONE-F1';
+        newStatus = activeApprovedEvent ? 'Outside Bounds' : 'Standby';
+      } else if (zoneCode === 'ZONE-F1') {
+        newLat = 11.4456;
+        newLng = 78.2272;
+        newZone = 'Student Hostels (Boys & Girls Blocks)';
+        newCode = 'ZONE-H1';
+        newStatus = activeApprovedEvent ? 'Outside Bounds' : 'Standby';
+      } else {
+        newLat = 11.4448;
+        newLng = 78.2263;
+        newZone = 'Main Auditorium (Kamarajar Hall)';
+        newCode = 'ZONE-A1';
+        newStatus = 'Inside Venue';
+      }
     }
 
+    if (optionalZone) {
+      newZone = optionalZone;
+    }
+
+    setCoordinates({ lat: newLat, lng: newLng });
+    setCurrentZone(newZone);
+    setZoneCode(newCode);
+    setGeofenceStatus(newStatus);
+    setAccuracy(3.2);
+
     if (isSharing) {
-      transmitLocationToBackend(newLat, newLng, accuracy);
+      transmitLocationToBackend(newLat, newLng, 3.2);
     }
   };
 

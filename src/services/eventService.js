@@ -13,11 +13,11 @@ import {
 import { db, isLiveFirebase } from './authService.js';
 import { CAMPUS_ZONES } from '../data/campusZones.js';
 
-// Local persistence keys
-const LOCAL_EVENTS_KEY = 'clidge_persisted_events_v4';
-const LOCAL_PARTICIPANTS_KEY = 'clidge_persisted_participants_v4';
+// Local persistence keys (v5 with Muthayammal Engineering College GNSS calibration)
+const LOCAL_EVENTS_KEY = 'clidge_persisted_events_v5';
+const LOCAL_PARTICIPANTS_KEY = 'clidge_persisted_participants_v5';
 
-// Default initial events formatted to schema
+// Default initial events formatted to schema (Muthayammal Engineering College campus venues)
 const DEFAULT_INITIAL_EVENTS = [
   {
     id: 'evt-2026-001',
@@ -28,8 +28,8 @@ const DEFAULT_INITIAL_EVENTS = [
     date: '2026-11-20',
     startTime: '09:30 AM',
     endTime: '04:30 PM',
-    latitude: 11.4982,
-    longitude: 78.1634,
+    latitude: 11.4448,
+    longitude: 78.2263,
     radius: 65,
     imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60',
     teacherId: 'fac-indrapriyadharshini-uid',
@@ -52,8 +52,8 @@ const DEFAULT_INITIAL_EVENTS = [
     date: '2026-11-21',
     startTime: '10:00 AM',
     endTime: '01:00 PM',
-    latitude: 11.4990,
-    longitude: 78.1642,
+    latitude: 11.4452,
+    longitude: 78.2267,
     radius: 45,
     imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop&q=60',
     teacherId: 'fac-hod-kavita-uid',
@@ -76,8 +76,8 @@ const DEFAULT_INITIAL_EVENTS = [
     date: '2026-11-28',
     startTime: '08:00 AM',
     endTime: '08:00 AM (Next Day)',
-    latitude: 11.4975,
-    longitude: 78.1650,
+    latitude: 11.4451,
+    longitude: 78.2265,
     radius: 55,
     imageUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=60',
     teacherId: 'fac-admin-001-uid',
@@ -100,8 +100,8 @@ const DEFAULT_INITIAL_EVENTS = [
     date: '2026-11-08',
     startTime: '10:00 AM',
     endTime: '03:30 PM',
-    latitude: 11.4982,
-    longitude: 78.1634,
+    latitude: 11.4448,
+    longitude: 78.2263,
     radius: 65,
     imageUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=60',
     teacherId: 'fac-indrapriyadharshini-uid',
@@ -281,8 +281,8 @@ export const createEventRecord = async (eventData, currentUser) => {
   if (!eventData.startTime?.trim()) throw new Error('Start time is required.');
   if (!eventData.endTime?.trim()) throw new Error('End time is required.');
 
-  const lat = Number(eventData.latitude) || 11.4982;
-  const lng = Number(eventData.longitude) || 78.1634;
+  const lat = Number(eventData.latitude) || 11.4450;
+  const lng = Number(eventData.longitude) || 78.2264;
   const radius = Number(eventData.radius) || 65;
 
   const eventId = `evt-${Date.now()}`;

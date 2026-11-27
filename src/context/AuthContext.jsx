@@ -95,10 +95,10 @@ export const AuthProvider = ({ children }) => {
    * Login as Student or Teacher
    * Verifies required role
    */
-  const login = async ({ email, password, requiredRole }) => {
+  const login = async ({ email, password, requiredRole, allowAutoProvision = false }) => {
     setAuthError(null);
     try {
-      const user = await apiLoginUser({ email, password, requiredRole });
+      const user = await apiLoginUser({ email, password, requiredRole, allowAutoProvision });
       setCurrentUser(user);
       return user;
     } catch (err) {

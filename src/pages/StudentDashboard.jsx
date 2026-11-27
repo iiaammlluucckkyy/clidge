@@ -80,6 +80,8 @@ export const StudentDashboard = () => {
       if (startBackgroundSharing && !isSharing && activeEvent && activeEvent.status !== 'Completed' && activeEvent.status !== 'Cancelled') {
         startBackgroundSharing();
       }
+    } else if (activeApprovedEvent !== null) {
+      setActiveApprovedEvent(null);
     }
   }, [studentJoinedEvents, activeApprovedEvent, setActiveApprovedEvent, startBackgroundSharing, isSharing]);
 

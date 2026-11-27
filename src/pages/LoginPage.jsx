@@ -75,7 +75,8 @@ export const LoginPage = () => {
       const user = await login({
         email: email.trim(),
         password,
-        requiredRole: portal
+        requiredRole: portal,
+        allowAutoProvision: portal === 'student'
       });
 
       // Redirect to appropriate dashboard based on role

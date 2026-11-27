@@ -389,7 +389,7 @@ export const registerStudent = async ({
  * - Verifies role matches requested portal
  * - Protects teacher portal from unauthorized student access
  */
-export const loginUser = async ({ email, password, requiredRole }) => {
+export const loginUser = async ({ email, password, requiredRole, allowAutoProvision = false }) => {
   if (!email?.trim()) throw new Error('Please enter your email address.');
   if (!password) throw new Error('Please enter your password.');
 
@@ -455,18 +455,38 @@ export const loginUser = async ({ email, password, requiredRole }) => {
       if (userExists) {
         throw new Error('Incorrect password. Please verify your credentials.');
       } else {
-        if (requiredRole === 'student') {
-          throw new Error(
-            `No account found with this email address for student access. Click "Create Student Account" above or use the one-click demo credentials below.`
-          );
+        if (requiredRole === 'student' && allowAutoProvision) {
+          // Seamless onboarding: If student enters credentials for the first time via UI,
+          // auto-provision their student account immediately so they are never blocked!
+          if (password && password.length >= 6) {
+            const emailPrefix = normalizedEmail.split('@')[0];
+            const cleanName = emailPrefix
+              .replace(/[._\d]/g, ' ')
+              .trim()
+              .replace(/\b\w/g, l => l.toUpperCase()) || 'Student User';
+
+            const autoRegisteredStudent = {
+              uid: `std-${Date.now()}`,
+              name: cleanName,
+              email: normalizedEmail,
+              registrationNumber: `731622CSR${Math.floor(100 + Math.random() * 899)}`,
+              department: 'Computer Science and Engineering',
+              year: 'III Year / B.E.',
+              role: 'student',
+              password,
+              createdAt: new Date().toISOString()
+            };
+            saveLocalUser(autoRegisteredStudent);
+            userProfile = { ...autoRegisteredStudent };
+          } else {
+            throw new Error('Password must be at least 6 characters long.');
+          }
         } else {
-          throw new Error(
-            `No account found with this email address for faculty access. Only authorized faculty can access this portal. Use the coordinator demo credentials below or contact admin.`
-          );
+          throw new Error('No account found with this email address. Please register first or use the demo credentials.');
         }
       }
     }
-    userProfile = { ...found };
+    userProfile = userProfile || { ...found };
   }
 
   // ==========================================================
