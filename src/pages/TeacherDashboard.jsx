@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useEvents } from '../context/EventContext';
-import { MONITORED_STUDENTS } from '../data/sampleStudents';
 import WelcomeBanner from '../components/dashboard/WelcomeBanner';
 import StatCard from '../components/common/StatCard';
 import TeacherLiveMap from '../components/monitoring/TeacherLiveMap';
@@ -60,14 +59,35 @@ export const TeacherDashboard = () => {
   const [reportModalEvent, setReportModalEvent] = useState(null);
   const [eventFilter, setEventFilter] = useState('ALL');
 
-  // Dynamic Roster & Event KPIs
-  const totalStudents = MONITORED_STUDENTS.length || 142;
-  const presentOnline = MONITORED_STUDENTS.filter(s => s.status === 'Inside Venue').length || 128;
-  const absentOffline = MONITORED_STUDENTS.filter(s => s.status === 'Outside Bounds' || s.status === 'Outdated / Idle' || s.status === 'Offline').length || 14;
-  const inEventStudents = 96; // Students currently participating in events
-  const activeEvents = events.filter(e => e.status === 'Ongoing');
-  const activeEventsCount = activeEvents.length || 2;
-  const avgAttendance = 91.4;
+  // Dynamic Roster & Event KPIs:
+  // If this teacher has created events, calculate strictly from her sessions.
+  // If the teacher has created no events yet (e.g. newly registered CA), KPIs start dynamically at 0.
+  const myEvents = teacherCreatedEvents || [];
+  const hasMyEvents = myEvents.length > 0;
+
+  const isHodOrAdmin = currentUser?.designation?.toLowerCase().includes('head') ||
+                       currentUser?.name?.toLowerCase().includes('kavita') ||
+                       currentUser?.role === 'admin';
+
+  const relevantEvents = (hasMyEvents || !isHodOrAdmin) ? myEvents : events;
+  const relevantEventIds = new Set(relevantEvents.map(e => e.id || e.eventId));
+
+  const relevantParticipants = Array.isArray(participantsList)
+    ? participantsList.filter(p => relevantEventIds.has(p.eventId) && p.sharingStatus !== 'Left')
+    : [];
+
+  const totalStudents = relevantParticipants.length;
+  const presentOnline = relevantParticipants.filter(
+    p => p.sharingStatus === 'Active' || p.checkInStatus === 'CHECKED_IN'
+  ).length;
+  const absentOffline = totalStudents > presentOnline ? (totalStudents - presentOnline) : 0;
+  const inEventStudents = presentOnline;
+
+  const activeEvents = relevantEvents.filter(e => e.status === 'Ongoing');
+  const activeEventsCount = activeEvents.length;
+  const avgAttendance = totalStudents > 0
+    ? Math.round((presentOnline / totalStudents) * 100)
+    : 0;
 
   const handleTabChange = (tabId) => {
     setSearchParams({ tab: tabId });
@@ -96,6 +116,7 @@ export const TeacherDashboard = () => {
 
   // Filtered events for the Event Management tab
   const filteredEvents = events.filter(evt => {
+    if (eventFilter === 'MY') return evt.teacherId === currentUser?.uid;
     if (eventFilter === 'ONGOING') return evt.status === 'Ongoing';
     if (eventFilter === 'UPCOMING') return evt.status === 'Upcoming';
     if (eventFilter === 'COMPLETED') return evt.status === 'Completed' || evt.status === 'Cancelled';
@@ -235,7 +256,11 @@ export const TeacherDashboard = () => {
 
               <div className="p-3 rounded-2xl bg-navy-900/60 border border-navy-800/80 flex items-center justify-between text-xs">
                 <span className="text-slate-400">Current Geofence Anchor:</span>
-                <span className="text-cyan-300 font-semibold">{activeEvents[0]?.venue || 'Main Auditorium'} (65m)</span>
+                <span className="text-cyan-300 font-semibold truncate max-w-[200px]">
+                  {activeEvents.length > 0
+                    ? `${activeEvents[0].venue} (${activeEvents[0].radius || 65}m)`
+                    : (hasMyEvents ? 'No ongoing session' : 'Standby (Create event to anchor)')}
+                </span>
               </div>
             </div>
 
@@ -245,8 +270,12 @@ export const TeacherDashboard = () => {
                 <h3 className="text-sm sm:text-base font-bold text-navy-950 flex items-center gap-2">
                   <Award className="w-4 h-4 text-cyan-600" /> Attendance Compliance
                 </h3>
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  {avgAttendance}% Avg
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                  totalStudents > 0
+                    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                    : 'text-slate-600 bg-slate-100 border-slate-200'
+                }`}>
+                  {totalStudents > 0 ? `${avgAttendance}% Avg` : 'Standby (0%)'}
                 </span>
               </div>
 
@@ -309,64 +338,77 @@ export const TeacherDashboard = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {events.slice(0, 3).map((evt) => (
-                <div
-                  key={evt.id || evt.eventId}
-                  className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <Badge variant={evt.status} size="sm">
-                        {evt.status}
-                      </Badge>
-                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                        {evt.category || 'Seminar'}
-                      </span>
+            {relevantEvents.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {relevantEvents.slice(0, 3).map((evt) => (
+                  <div
+                    key={evt.id || evt.eventId}
+                    className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <Badge variant={evt.status} size="sm">
+                          {evt.status}
+                        </Badge>
+                        <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                          {evt.category || 'Seminar'}
+                        </span>
+                      </div>
+
+                      <h4
+                        onClick={() => handleOpenDetails(evt.id || evt.eventId)}
+                        className="text-sm font-bold text-navy-900 hover:text-cyan-600 transition-colors cursor-pointer line-clamp-1 mb-1"
+                      >
+                        {evt.title}
+                      </h4>
+
+                      <div className="space-y-1 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 mb-3">
+                        <p className="flex items-center gap-1.5">
+                          <Clock className="w-3 h-3 text-cyan-600" /> {evt.startTime} - {evt.endTime}
+                        </p>
+                        <p className="flex items-center gap-1.5 truncate">
+                          <MapPin className="w-3 h-3 text-cyan-600" /> {evt.venue}
+                        </p>
+                      </div>
+
+                      <div className="flex justify-between text-xs text-slate-500 mb-3">
+                        <span>Registered: <strong className="text-navy-900">{evt.registeredCount || 0}</strong></span>
+                        <span>Radius: <strong className="text-cyan-700">{evt.radius || 65}m</strong></span>
+                      </div>
                     </div>
 
-                    <h4
-                      onClick={() => handleOpenDetails(evt.id || evt.eventId)}
-                      className="text-sm font-bold text-navy-900 hover:text-cyan-600 transition-colors cursor-pointer line-clamp-1 mb-1"
-                    >
-                      {evt.title}
-                    </h4>
-
-                    <div className="space-y-1 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 mb-3">
-                      <p className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3 text-cyan-600" /> {evt.startTime} - {evt.endTime}
-                      </p>
-                      <p className="flex items-center gap-1.5 truncate">
-                        <MapPin className="w-3 h-3 text-cyan-600" /> {evt.venue}
-                      </p>
-                    </div>
-
-                    <div className="flex justify-between text-xs text-slate-500 mb-3">
-                      <span>Registered: <strong className="text-navy-900">{evt.registeredCount || 0}</strong></span>
-                      <span>Radius: <strong className="text-cyan-700">{evt.radius || 65}m</strong></span>
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenDetails(evt.id || evt.eventId)}
+                      >
+                        Details
+                      </Button>
+                      <Button
+                        variant="cyan"
+                        size="sm"
+                        onClick={() => handleShowQR(evt)}
+                        icon={QrCode}
+                      >
+                        QR Code
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenDetails(evt.id || evt.eventId)}
-                    >
-                      Details
-                    </Button>
-                    <Button
-                      variant="cyan"
-                      size="sm"
-                      onClick={() => handleShowQR(evt)}
-                      icon={QrCode}
-                    >
-                      QR Code
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-white rounded-3xl border border-slate-200">
+                <CalendarCheck2 className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                <p className="text-sm font-bold text-navy-950">No events created yet</p>
+                <p className="text-xs text-slate-500 mt-1 mb-4">
+                  Click "Create Campus Event" to schedule your first geofenced workshop, lecture, or laboratory session.
+                </p>
+                <Button variant="cyan" size="sm" onClick={() => setCreateModalOpen(true)} icon={PlusCircle}>
+                  Create First Event
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -424,7 +466,7 @@ export const TeacherDashboard = () => {
 
           {/* Filter Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-            {['ALL', 'ONGOING', 'UPCOMING', 'COMPLETED'].map((f) => (
+            {['ALL', 'MY', 'ONGOING', 'UPCOMING', 'COMPLETED'].map((f) => (
               <button
                 key={f}
                 onClick={() => setEventFilter(f)}
@@ -434,113 +476,134 @@ export const TeacherDashboard = () => {
                     : 'bg-white text-slate-600 hover:text-navy-950 border border-slate-200'
                 }`}
               >
-                {f === 'ALL' ? `All Sessions (${events.length})` : f}
+                {f === 'ALL'
+                  ? `All Sessions (${events.length})`
+                  : f === 'MY'
+                  ? `My Sessions (${myEvents.length})`
+                  : f}
               </button>
             ))}
           </div>
 
-          {/* Events Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredEvents.map((evt) => {
-              const isOwner = evt.teacherId === currentUser?.uid;
-              return (
-                <div
-                  key={evt.id || evt.eventId}
-                  className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <Badge variant={evt.status} size="sm">
-                        {evt.status}
-                      </Badge>
-                      <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                        {evt.category || 'Workshop'}
-                      </span>
-                    </div>
-
-                    <h3
-                      onClick={() => handleOpenDetails(evt.id || evt.eventId)}
-                      className="text-base font-bold text-navy-900 hover:text-cyan-600 transition-colors cursor-pointer line-clamp-1 mb-1"
-                    >
-                      {evt.title}
-                    </h3>
-                    <p className="text-xs text-cyan-700 mb-3 truncate">{evt.teacherDepartment || evt.department}</p>
-
-                    <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-cyan-600" />
-                        <span>{evt.startTime} - {evt.endTime}</span>
+          {/* Events Grid or Clean Empty State */}
+          {filteredEvents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredEvents.map((evt) => {
+                const isOwner = evt.teacherId === currentUser?.uid;
+                return (
+                  <div
+                    key={evt.id || evt.eventId}
+                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <Badge variant={evt.status} size="sm">
+                          {evt.status}
+                        </Badge>
+                        <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                          {evt.category || 'Workshop'}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3.5 h-3.5 text-cyan-600" />
-                        <span className="truncate">{evt.venue}</span>
-                      </div>
-                    </div>
 
-                    <div className="flex justify-between items-center text-xs font-semibold py-1">
-                      <span className="text-slate-500">Registered Students:</span>
-                      <span className="text-navy-900 font-bold">
-                        {evt.registeredCount || 0} / {evt.maxCapacity || 150}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs font-semibold py-1">
-                      <span className="text-slate-500">Geofence Radius:</span>
-                      <span className="text-cyan-700 font-bold">
-                        {evt.radius || evt.geofenceRadius || 65} meters
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
+                      <h3
                         onClick={() => handleOpenDetails(evt.id || evt.eventId)}
+                        className="text-base font-bold text-navy-900 hover:text-cyan-600 transition-colors cursor-pointer line-clamp-1 mb-1"
                       >
-                        Details
-                      </Button>
-                      <button
-                        type="button"
-                        title="View Participants Roster"
-                        onClick={() => handleOpenParticipants(evt)}
-                        className="p-1.5 rounded-lg text-slate-600 hover:text-navy-950 hover:bg-slate-100 transition-colors"
-                      >
-                        <Users2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        title="Attendance Report"
-                        onClick={() => handleOpenReport(evt)}
-                        className="p-1.5 rounded-lg text-cyan-700 hover:text-navy-950 hover:bg-cyan-50 transition-colors"
-                      >
-                        <FileSpreadsheet className="w-4 h-4" />
-                      </button>
-                      {isOwner && (
+                        {evt.title}
+                      </h3>
+                      <p className="text-xs text-cyan-700 mb-3 truncate">{evt.teacherDepartment || evt.department}</p>
+
+                      <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-4">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-cyan-600" />
+                          <span>{evt.startTime} - {evt.endTime}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-cyan-600" />
+                          <span className="truncate">{evt.venue}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs font-semibold py-1">
+                        <span className="text-slate-500">Registered Students:</span>
+                        <span className="text-navy-900 font-bold">
+                          {evt.registeredCount || 0} / {evt.maxCapacity || 150}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-semibold py-1">
+                        <span className="text-slate-500">Geofence Radius:</span>
+                        <span className="text-cyan-700 font-bold">
+                          {evt.radius || evt.geofenceRadius || 65} meters
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenDetails(evt.id || evt.eventId)}
+                        >
+                          Details
+                        </Button>
                         <button
                           type="button"
-                          title="Edit Event"
-                          onClick={() => handleOpenEdit(evt)}
+                          title="View Participants Roster"
+                          onClick={() => handleOpenParticipants(evt)}
                           className="p-1.5 rounded-lg text-slate-600 hover:text-navy-950 hover:bg-slate-100 transition-colors"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Users2 className="w-4 h-4" />
                         </button>
-                      )}
-                    </div>
+                        <button
+                          type="button"
+                          title="Attendance Report"
+                          onClick={() => handleOpenReport(evt)}
+                          className="p-1.5 rounded-lg text-cyan-700 hover:text-navy-950 hover:bg-cyan-50 transition-colors"
+                        >
+                          <FileSpreadsheet className="w-4 h-4" />
+                        </button>
+                        {isOwner && (
+                          <button
+                            type="button"
+                            title="Edit Event"
+                            onClick={() => handleOpenEdit(evt)}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-navy-950 hover:bg-slate-100 transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
 
-                    <Button
-                      variant="cyan"
-                      size="sm"
-                      onClick={() => handleShowQR(evt)}
-                      icon={QrCode}
-                    >
-                      QR Code
-                    </Button>
+                      <Button
+                        variant="cyan"
+                        size="sm"
+                        onClick={() => handleShowQR(evt)}
+                        icon={QrCode}
+                      >
+                        QR Code
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+              <CalendarCheck2 className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+              <p className="text-sm font-bold text-navy-950">No sessions match this filter</p>
+              <p className="text-xs text-slate-500 mt-1 mb-4">
+                {eventFilter === 'MY'
+                  ? 'You have not created any campus events yet. Click below to create your first event!'
+                  : 'No active or upcoming events found under this status.'}
+              </p>
+              {eventFilter === 'MY' && (
+                <Button variant="cyan" size="sm" onClick={() => setCreateModalOpen(true)} icon={PlusCircle}>
+                  Create Campus Event
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
