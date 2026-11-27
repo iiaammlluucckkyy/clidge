@@ -1,377 +1,515 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { Html5Qrcode } from 'html5-qrcode';
 import {
-  MapPin,
   Navigation,
-  Compass,
+  Power,
+  QrCode,
   Crosshair,
-  ShieldCheck,
-  ShieldAlert,
+  AlertCircle,
   Clock,
-  RefreshCw,
+  MapPin,
   Radio,
-  Sparkles,
-  Building,
-  UtensilsCrossed,
-  Home
+  CheckCircle2,
+  Camera,
+  X,
+  WifiOff,
+  Loader2
 } from 'lucide-react';
+import { useLocation as useRouterLocation } from 'react-router-dom';
 import { useLocation } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
-import { CAMPUS_ZONES, getCampusLandmark, calculateHaversineMeters } from '../../data/campusZones.js';
+import { WorldTileLayers, MapStyleSwitcher } from '../map/WorldMapLayerSwitcher';
 import Button from '../common/Button';
-import Badge from '../common/Badge';
+import Modal from '../common/Modal';
 
-// Map Recenter Helper
-const MapRecenter = ({ center, zoom }) => {
+const WORLD_CENTER = [20, 0];
+
+const MapFollower = ({ center, zoom }) => {
   const map = useMap();
+  const lastKeyRef = useRef('');
   useEffect(() => {
-    if (center && center[0] && center[1]) {
-      map.flyTo(center, zoom || 17, { duration: 1.0 });
+    if (!center || center.length < 2) return;
+    const key = `${center[0].toFixed(4)},${center[1].toFixed(4)},${zoom}`;
+    if (lastKeyRef.current !== key) {
+      lastKeyRef.current = key;
+      map.flyTo(center, zoom, { duration: 1.0 });
     }
   }, [center, zoom, map]);
   return null;
 };
 
-// Venue Center Marker Icon
-const createVenueIcon = (name) => {
-  return L.divIcon({
-    className: 'custom-venue-icon',
+const createZoneMarkerIcon = (zone) =>
+  L.divIcon({
+    className: 'custom-college-zone',
     html: `
-      <div style="display:flex; flex-direction:column; align-items:center; transform: translate(-50%, -100%);">
-        <div style="background:#0b1d33; color:#38bdf8; border:2px solid #38bdf8; padding:3px 8px; border-radius:10px; font-size:10px; font-weight:800; white-space:nowrap; box-shadow:0 4px 10px rgba(0,0,0,0.4); display:flex; align-items:center; gap:4px;">
-          <span>🏛️</span>
-          <span>${name || 'Event Venue'}</span>
+      <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%);">
+        <div style="background:#0f172a;color:${zone.color || '#38bdf8'};border:1.5px solid ${zone.color || '#38bdf8'};padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.45);">
+          📍 ${zone.name}
         </div>
-        <div style="width:14px; height:14px; background:#06b6d4; border:2.5px solid white; border-radius:50%; box-shadow:0 0 10px #06b6d4;"></div>
-        <div style="width:2px; height:5px; background:#06b6d4;"></div>
+        <div style="width:8px;height:8px;background:${zone.color || '#38bdf8'};border:1.5px solid white;border-radius:50%;margin-top:2px;"></div>
       </div>
     `,
     iconSize: [0, 0]
   });
-};
 
-// Campus Landmark Icon (Hostel, Canteen, Labs, etc.)
-const createLandmarkIcon = (zone) => {
-  let emoji = '🏛️';
-  if (zone.type.includes('Canteen') || zone.type.includes('Cafeteria')) emoji = '🍴';
-  else if (zone.type.includes('Hostel')) emoji = '🏢';
-  else if (zone.type.includes('Lab')) emoji = '🔬';
-  else if (zone.type.includes('Seminar')) emoji = '💻';
-  else if (zone.type.includes('Library')) emoji = '📚';
-  else if (zone.type.includes('Sports')) emoji = '⚽';
-
+const createMyLocationIcon = (name, isSharing, waiting) => {
+  const color = !isSharing ? '#64748b' : waiting ? '#f59e0b' : '#10b981';
+  const initial = (name || 'U').charAt(0).toUpperCase();
+  const tag = !isSharing ? 'MY GPS' : waiting ? 'ACQUIRING' : 'SHARING LIVE';
   return L.divIcon({
-    className: 'custom-campus-landmark',
+    className: 'custom-student-dot',
     html: `
-      <div style="display:flex; flex-direction:column; align-items:center; transform: translate(-50%, -100%); pointer-events:auto;">
-        <div style="background:#0b1d33; color:${zone.color}; border:1.5px solid ${zone.color}; padding:2px 6px; border-radius:8px; font-size:9px; font-weight:700; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.4); display:flex; align-items:center; gap:3px;">
-          <span>${emoji}</span>
-          <span>${zone.name.split(' (')[0]}</span>
-        </div>
-        <div style="width:8px; height:8px; background:${zone.color}; border:1.5px solid white; border-radius:50%;"></div>
-      </div>
-    `,
-    iconSize: [0, 0]
-  });
-};
-
-// Student's Own Live Location Marker Icon
-const createMyStudentIcon = (name, isInside, isLive, hasActiveEvent) => {
-  const color = !hasActiveEvent
-    ? '#06b6d4'
-    : (isLive ? (isInside ? '#10b981' : '#f43f5e') : '#f59e0b');
-  const initial = name ? name.charAt(0).toUpperCase() : 'U';
-  const label = hasActiveEvent
-    ? (isInside ? 'YOU (INSIDE)' : 'YOU (OUTSIDE)')
-    : 'YOU (LIVE GPS)';
-
-  return L.divIcon({
-    className: 'custom-my-location-icon',
-    html: `
-      <div style="position:relative; display:flex; align-items:center; justify-content:center; width:40px; height:40px; transform: translate(-50%, -50%);">
-        <div style="position:absolute; width:40px; height:40px; border-radius:50%; background:${color}; opacity:0.35; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-        <div style="position:relative; width:28px; height:28px; border-radius:50%; background:#0b1d33; border:3px solid ${color}; color:white; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; box-shadow:0 4px 12px rgba(0,0,0,0.5);">
+      <div style="position:relative;display:flex;align-items:center;justify-content:center;width:42px;height:42px;transform:translate(-50%,-50%);">
+        ${isSharing ? `<div style="position:absolute;width:42px;height:42px;border-radius:50%;background:${color};opacity:0.35;animation:ping 1.5s infinite;"></div>` : ''}
+        <div style="position:relative;width:28px;height:28px;border-radius:50%;background:#061727;border:3px solid ${color};color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,0.5);">
           ${initial}
         </div>
-        <div style="position:absolute; bottom:-9px; padding:1px 6px; border-radius:6px; background:${color}; color:white; font-size:8px; font-weight:800; white-space:nowrap; text-transform:uppercase; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
-          ${label}
+        <div style="position:absolute;bottom:-10px;padding:1px 6px;border-radius:6px;background:${color};color:white;font-size:8px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.35);">
+          ${tag}
         </div>
       </div>
     `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20]
+    iconSize: [42, 42],
+    iconAnchor: [21, 21]
   });
+};
+
+// Extract 6-char session code whether scanned from full URL or typed raw
+const extractSessionCode = (raw) => {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  try {
+    if (trimmed.includes('session=')) {
+      const url = new URL(trimmed.startsWith('http') ? trimmed : `https://example.com/${trimmed}`);
+      return (url.searchParams.get('session') || '').trim().toUpperCase();
+    }
+  } catch {}
+  return trimmed.toUpperCase();
 };
 
 export const StudentLiveLocationMap = () => {
   const { currentUser } = useAuth();
+  const routerLocation = useRouterLocation();
   const {
-    coordinates,
-    accuracy,
-    geofenceStatus,
-    stalenessStatus,
+    activeSession,
+    sessionError,
+    setSessionError,
+    joinSessionCode,
     isSharing,
-    activeApprovedEvent,
-    sendImmediateLocationPing,
-    simulateMovement,
-    isTransmitting,
-    currentZone
+    coordinates,
+    previewCoordinates,
+    accuracy,
+    currentPlace,
+    matchedZoneName,
+    lastUpdatedAt,
+    waitingForBetterFix,
+    lowAccuracyValue,
+    gpsError,
+    isOnline,
+    collegeZones,
+    startSharing,
+    stopSharing,
+    centerOnMyGps
   } = useLocation();
 
-  const venueLat = activeApprovedEvent?.latitude || 11.4448;
-  const venueLng = activeApprovedEvent?.longitude || 78.2263;
-  const venueRadius = activeApprovedEvent?.radius || 65;
-  const venueName = activeApprovedEvent?.venue || 'Main Auditorium';
+  const [codeInput, setCodeInput] = useState('');
+  const [mapStyle, setMapStyle] = useState('satellite-labels');
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerError, setScannerError] = useState('');
+  const [connectingSession, setConnectingSession] = useState(false);
 
-  const studentLat = coordinates?.lat || 11.4450;
-  const studentLng = coordinates?.lng || 78.2264;
+  const html5QrRef = useRef(null);
 
-  const distanceToVenue = activeApprovedEvent
-    ? calculateHaversineMeters(studentLat, studentLng, venueLat, venueLng)
-    : null;
-  const isInside = distanceToVenue !== null ? distanceToVenue <= venueRadius : true;
-  const isLive = stalenessStatus === 'LIVE' || isSharing;
-  const hasActiveEvent = Boolean(activeApprovedEvent);
+  // Check ?session=CODE in URL on load (from scanning Faculty's QR link!)
+  // IMPORTANT: Validates and populates the session ONLY — never starts sharing automatically!
+  useEffect(() => {
+    const params = new URLSearchParams(routerLocation.search);
+    const urlSession = params.get('session');
+    if (urlSession) {
+      const clean = extractSessionCode(urlSession);
+      setCodeInput(clean);
+      joinSessionCode(clean).catch((err) => {
+        setSessionError(err.message);
+      });
+    }
+  }, [routerLocation.search, joinSessionCode, setSessionError]);
 
-  const detectedLandmark = getCampusLandmark(studentLat, studentLng);
-  const mapCenter = [studentLat, studentLng];
+  // Manage real camera QR scanner lifecycle
+  useEffect(() => {
+    if (!scannerOpen) {
+      if (html5QrRef.current) {
+        html5QrRef.current.stop().catch(() => {}).finally(() => {
+          html5QrRef.current = null;
+        });
+      }
+      return;
+    }
+
+    setScannerError('');
+    const regionId = 'clidge-student-qr-reader';
+    const timer = setTimeout(async () => {
+      try {
+        const scanner = new Html5Qrcode(regionId);
+        html5QrRef.current = scanner;
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          async (decodedText) => {
+            const parsed = extractSessionCode(decodedText);
+            if (parsed) {
+              setCodeInput(parsed);
+              setScannerOpen(false);
+              try {
+                await joinSessionCode(parsed);
+              } catch (err) {
+                setSessionError(err.message);
+              }
+            }
+          },
+          () => {}
+        );
+      } catch (err) {
+        setScannerError(
+          'Could not access phone camera. You can still type the 6-character Session Code manually or scan the QR with your phone camera app.'
+        );
+      }
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      if (html5QrRef.current) {
+        html5QrRef.current.stop().catch(() => {}).finally(() => {
+          html5QrRef.current = null;
+        });
+      }
+    };
+  }, [scannerOpen, joinSessionCode, setSessionError]);
+
+  const handleConnectCode = async (e) => {
+    e.preventDefault();
+    const cleaned = extractSessionCode(codeInput);
+    if (!cleaned) {
+      setSessionError('Enter the 6-character session code shown by your faculty.');
+      return;
+    }
+    setConnectingSession(true);
+    try {
+      await joinSessionCode(cleaned);
+    } catch (err) {
+      setSessionError(err.message);
+    } finally {
+      setConnectingSession(false);
+    }
+  };
+
+  const handleStartClick = () => {
+    const code = activeSession?.sessionCode || extractSessionCode(codeInput);
+    startSharing(code);
+  };
+
+  // Determine map center: Live GPS > Preview GPS > First college zone > World view
+  const activePoint = coordinates || previewCoordinates;
+  const mapCenter = activePoint
+    ? [activePoint.lat, activePoint.lng]
+    : collegeZones.length > 0
+    ? [Number(collegeZones[0].latitude), Number(collegeZones[0].longitude)]
+    : WORLD_CENTER;
+  const mapZoom = activePoint ? 18 : collegeZones.length > 0 ? 17 : 2;
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/80 shadow-card overflow-hidden">
-      {/* Top Header Card */}
-      <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm sm:text-base font-bold text-navy-950 flex items-center gap-2">
-              <Compass className="w-5 h-5 text-cyan-600" />
-              My Campus Live Location (MEC Rasipuram)
-            </h3>
-            {hasActiveEvent ? (
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                  isInside
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${isInside ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}
-                ></span>
-                {isInside ? 'Inside Geofence Boundary' : 'Outside Geofence Perimeter'}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-50 text-cyan-800 border border-cyan-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
-                Standby — Live GNSS Active
-              </span>
-            )}
+    <div className="space-y-5">
+      {!isOnline && (
+        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100 flex items-center gap-2.5">
+          <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>Internet connection lost. Reconnect to send live GPS updates to your faculty.</span>
+        </div>
+      )}
+
+      {/* Step 1: Enter Session Code or Scan QR + Start/Stop Sharing Controls */}
+      <div className="bg-white dark:bg-navy-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-navy-800 shadow-card space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-navy-800">
+          <div>
+            <h2 className="text-base sm:text-lg font-extrabold text-navy-950 dark:text-white flex items-center gap-2">
+              <Navigation className="w-5 h-5 text-cyan-600" /> My Location Sharing
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Enter your faculty's session code (or scan their QR), then tap <strong>Start sharing</strong>.
+            </p>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {hasActiveEvent ? (
-              <>Active Session: <strong className="text-navy-900">{activeApprovedEvent.title}</strong></>
-            ) : (
-              <>Campus Area: <strong className="text-navy-900">{detectedLandmark.landmark}</strong> (No active event session joined)</>
-            )}
-          </p>
+
+          <span
+            className={`self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+              isSharing && !waitingForBetterFix
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700'
+                : isSharing && waitingForBetterFix
+                ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700'
+                : 'bg-slate-100 dark:bg-navy-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-navy-700'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isSharing && !waitingForBetterFix
+                  ? 'bg-emerald-500 animate-pulse'
+                  : isSharing
+                  ? 'bg-amber-500 animate-pulse'
+                  : 'bg-slate-400'
+              }`}
+            ></span>
+            {isSharing ? (waitingForBetterFix ? 'Waiting for Better Fix' : 'Sharing LIVE') : 'Sharing Off'}
+          </span>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        {/* Session Code Form */}
+        <form onSubmit={handleConnectCode} className="flex flex-col sm:flex-row gap-2.5">
+          <div className="flex-1 relative">
+            <QrCode className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Session code (e.g. A1B2C3)"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-navy-950 border border-slate-200 dark:border-navy-700 rounded-xl pl-10 pr-4 py-2.5 text-xs font-mono uppercase text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="submit"
+              variant="outline"
+              size="md"
+              disabled={connectingSession}
+            >
+              {connectingSession ? 'Checking...' : 'Load Session'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              icon={Camera}
+              onClick={() => setScannerOpen(true)}
+            >
+              Scan QR
+            </Button>
+          </div>
+        </form>
+
+        {/* Active Session Badge */}
+        {activeSession && (
+          <div className="p-3 rounded-2xl bg-cyan-50/70 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div>
+              <span className="font-bold text-navy-950 dark:text-white">{activeSession.title || 'Location Session'}</span>
+              <span className="text-slate-500 dark:text-slate-400 block text-[11px]">
+                Faculty: {activeSession.facultyName} • Code: <strong className="font-mono text-cyan-700 dark:text-cyan-300">{activeSession.sessionCode}</strong>
+              </span>
+            </div>
+            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${activeSession.active ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' : 'bg-rose-100 text-rose-800'}`}>
+              {activeSession.active ? 'Session Active' : 'Session Ended'}
+            </span>
+          </div>
+        )}
+
+        {/* Friendly Errors & Warnings */}
+        {sessionError && (
+          <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span>{sessionError}</span>
+          </div>
+        )}
+
+        {gpsError && (
+          <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span>{gpsError}</span>
+          </div>
+        )}
+
+        {waitingForBetterFix && (
+          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-amber-600 shrink-0" />
+            <span>
+              Waiting for a better GPS fix... (Current signal accuracy is ±{lowAccuracyValue}m; signals worse than 150m are ignored. Move near a window or outdoors.)
+            </span>
+          </div>
+        )}
+
+        {/* Explicit Start Sharing / Stop Sharing Buttons */}
+        <div className="grid grid-cols-2 gap-3 pt-1">
           <Button
-            variant="cyan"
-            size="sm"
-            onClick={sendImmediateLocationPing}
-            disabled={isTransmitting}
-            icon={RefreshCw}
-            className={isTransmitting ? 'animate-spin' : ''}
-            title="Read live satellite hardware GPS from device"
+            type="button"
+            variant="emerald"
+            size="lg"
+            icon={Power}
+            disabled={isSharing}
+            onClick={handleStartClick}
+            className="w-full justify-center"
           >
-            {isTransmitting ? 'Acquiring...' : 'Update GPS'}
+            Start sharing
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            size="lg"
+            icon={X}
+            disabled={!isSharing}
+            onClick={() => stopSharing()}
+            className="w-full justify-center"
+          >
+            Stop sharing
           </Button>
         </div>
       </div>
 
-      {/* Campus Landmark Quick Location Simulator Bar */}
-      <div className="p-3 bg-slate-100/70 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <span className="font-bold text-navy-900 flex items-center gap-1">
-          <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
-          Test Location at MEC Landmarks:
-        </span>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            onClick={() => simulateMovement('Auditorium')}
-            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-navy-900 hover:bg-cyan-50 hover:text-cyan-800 border border-slate-200 shadow-2xs transition-colors"
-          >
-            🏛️ Auditorium
-          </button>
-          <button
-            onClick={() => simulateMovement('Canteen')}
-            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-orange-900 hover:bg-orange-50 hover:text-orange-950 border border-slate-200 shadow-2xs transition-colors"
-          >
-            🍴 Canteen
-          </button>
-          <button
-            onClick={() => simulateMovement('Hostel')}
-            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-pink-900 hover:bg-pink-50 hover:text-pink-950 border border-slate-200 shadow-2xs transition-colors"
-          >
-            🏢 Hostels
-          </button>
-          <button
-            onClick={() => simulateMovement('Outside Bounds')}
-            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-rose-900 hover:bg-rose-50 border border-slate-200 shadow-2xs transition-colors"
-          >
-            🚶 Outside Campus
-          </button>
+      {/* Live Telemetry Readout */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className="bg-white dark:bg-navy-900 p-3.5 rounded-2xl border border-slate-200 dark:border-navy-800">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block">Current Place</span>
+          <span className="font-bold text-navy-950 dark:text-white mt-0.5 block truncate" title={currentPlace}>
+            {matchedZoneName ? `📍 ${matchedZoneName}` : currentPlace || 'Not acquired yet'}
+          </span>
+        </div>
+
+        <div className="bg-white dark:bg-navy-900 p-3.5 rounded-2xl border border-slate-200 dark:border-navy-800">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block">Lat / Long</span>
+          <span className="font-mono font-bold text-cyan-700 dark:text-cyan-300 mt-0.5 block">
+            {activePoint ? `${activePoint.lat.toFixed(6)}, ${activePoint.lng.toFixed(6)}` : '—'}
+          </span>
+        </div>
+
+        <div className="bg-white dark:bg-navy-900 p-3.5 rounded-2xl border border-slate-200 dark:border-navy-800">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block">GPS Accuracy</span>
+          <span className="font-bold text-navy-950 dark:text-white mt-0.5 flex items-center gap-1">
+            <Radio className="w-3.5 h-3.5 text-cyan-500" />
+            {accuracy !== null ? `±${accuracy} m` : 'Pending'}
+          </span>
+        </div>
+
+        <div className="bg-white dark:bg-navy-900 p-3.5 rounded-2xl border border-slate-200 dark:border-navy-800">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block">Last Updated</span>
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" />
+            {lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Idle'}
+          </span>
         </div>
       </div>
 
-      {/* Telemetry Indicator Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-navy-950 text-white text-xs border-b border-navy-800">
-        <div className="px-2">
-          <span className="text-[10px] text-slate-400 block uppercase font-bold">Current Coordinates</span>
-          <span className="font-mono font-bold text-cyan-300">
-            {studentLat.toFixed(5)}, {studentLng.toFixed(5)}
+      {/* Worldwide Satellite Map */}
+      <div className="bg-white dark:bg-navy-900 rounded-3xl border border-slate-200/80 dark:border-navy-800 shadow-card overflow-hidden">
+        <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-navy-800 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-bold text-navy-950 dark:text-white flex items-center gap-1.5">
+            <MapPin className="w-4 h-4 text-cyan-600" /> Live Worldwide Map
           </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => centerOnMyGps().catch(() => {})}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-navy-800 hover:bg-cyan-50 text-xs font-bold text-navy-900 dark:text-white flex items-center gap-1"
+            >
+              <Crosshair className="w-3.5 h-3.5 text-cyan-600" /> Center on my GPS
+            </button>
+            <MapStyleSwitcher mapStyle={mapStyle} setMapStyle={setMapStyle} />
+          </div>
         </div>
-        <div className="px-2">
-          <span className="text-[10px] text-slate-400 block uppercase font-bold">Campus Landmark</span>
-          <span className="font-bold text-emerald-400 truncate block">
-            {detectedLandmark.landmark}
-          </span>
-        </div>
-        <div className="px-2">
-          <span className="text-[10px] text-slate-400 block uppercase font-bold">
-            {hasActiveEvent ? 'Distance to Venue' : 'Geofence Mode'}
-          </span>
-          <span className="font-bold text-slate-200">
-            {hasActiveEvent ? `${distanceToVenue} m (${venueRadius}m boundary)` : 'Campus Standby'}
-          </span>
-        </div>
-        <div className="px-2">
-          <span className="text-[10px] text-slate-400 block uppercase font-bold">GNSS Precision</span>
-          <span className="font-bold text-cyan-400">±{accuracy || 3.5} m (Verified)</span>
-        </div>
-      </div>
 
-      {/* Interactive Leaflet Map */}
-      <div className="h-[360px] sm:h-[420px] w-full relative">
-        <MapContainer
-          center={mapCenter}
-          zoom={18}
-          scrollWheelZoom={true}
-          className="h-full w-full z-0"
-        >
-          <MapRecenter center={mapCenter} zoom={18} />
-
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {/* Render All Muthayammal Campus Landmarks (Hostel, Canteen, Auditorium, Labs, Library, Sports) */}
-          {CAMPUS_ZONES.map((zone) => (
-            <React.Fragment key={zone.id}>
-              <Circle
-                center={[zone.center.lat, zone.center.lng]}
-                radius={zone.radiusMeters}
-                pathOptions={{
-                  color: zone.color,
-                  fillColor: zone.color,
-                  fillOpacity: 0.08,
-                  weight: 1.5,
-                  dashArray: '4, 4'
-                }}
-              />
-              <Marker
-                position={[zone.center.lat, zone.center.lng]}
-                icon={createLandmarkIcon(zone)}
-              >
-                <Popup>
-                  <div className="text-xs space-y-1 p-1">
-                    <p className="font-bold text-navy-900">{zone.name}</p>
-                    <p className="text-slate-500">{zone.building}</p>
-                    <p className="font-mono text-cyan-700">{zone.code} • Radius: {zone.radiusMeters}m</p>
-                  </div>
-                </Popup>
-              </Marker>
-            </React.Fragment>
-          ))}
-
-          {/* If Event Joined: Render Event Venue Center Marker & Geofence Boundary */}
-          {hasActiveEvent && (
-            <>
-              <Marker position={[venueLat, venueLng]} icon={createVenueIcon(venueName)}>
-                <Popup>
-                  <div className="text-xs space-y-1 p-1">
-                    <p className="font-bold text-navy-900">{venueName}</p>
-                    <p className="text-slate-500">Official Geofence Center</p>
-                    <p className="font-mono text-cyan-700">Radius: {venueRadius}m</p>
-                  </div>
-                </Popup>
-              </Marker>
-
-              <Circle
-                center={[venueLat, venueLng]}
-                radius={venueRadius}
-                pathOptions={{
-                  color: isInside ? '#06b6d4' : '#f43f5e',
-                  fillColor: isInside ? '#06b6d4' : '#f43f5e',
-                  fillOpacity: 0.15,
-                  weight: 2.5,
-                  dashArray: '6, 6'
-                }}
-              />
-            </>
-          )}
-
-          {/* Student's Own Live Location Marker */}
-          <Marker
-            position={[studentLat, studentLng]}
-            icon={createMyStudentIcon(currentUser?.name, isInside, isLive, hasActiveEvent)}
+        <div className="h-[380px] sm:h-[440px] w-full relative">
+          <MapContainer
+            center={mapCenter}
+            zoom={mapZoom}
+            maxZoom={21}
+            scrollWheelZoom={true}
+            className="h-full w-full z-0"
           >
-            <Popup>
-              <div className="text-xs space-y-1 p-1">
-                <p className="font-bold text-navy-900">{currentUser?.name || 'Your Location'}</p>
-                <p className="text-slate-500">{currentUser?.registrationNumber || 'Student'}</p>
-                <div className="py-1 px-1.5 rounded bg-cyan-50 border border-cyan-100 text-cyan-900 font-bold text-[11px]">
-                  📍 {detectedLandmark.landmark}
-                </div>
-                {hasActiveEvent ? (
-                  <>
-                    <p className={`font-bold ${isInside ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      Status: {isInside ? 'Inside Geofence' : 'Outside Bounds'}
-                    </p>
-                    <p className="text-[11px] text-slate-400 font-mono">
-                      Distance: {distanceToVenue}m from venue center
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-emerald-600 font-bold">
-                    Real Device GPS Active on Campus
-                  </p>
+            <MapFollower center={mapCenter} zoom={mapZoom} />
+            <WorldTileLayers mapStyle={mapStyle} />
+
+            {/* College Zones (Hostel, Canteen, Library, etc.) */}
+            {collegeZones.map((zone) => (
+              <React.Fragment key={zone.id}>
+                <Circle
+                  center={[Number(zone.latitude), Number(zone.longitude)]}
+                  radius={Number(zone.radius) || 60}
+                  pathOptions={{
+                    color: zone.color || '#06b6d4',
+                    fillColor: zone.color || '#06b6d4',
+                    fillOpacity: 0.14,
+                    weight: 2,
+                    dashArray: '4, 4'
+                  }}
+                />
+                <Marker
+                  position={[Number(zone.latitude), Number(zone.longitude)]}
+                  icon={createZoneMarkerIcon(zone)}
+                >
+                  <Popup>
+                    <div className="p-2 text-xs text-navy-950">
+                      <p className="font-bold">{zone.name}</p>
+                      <p className="text-slate-500">Radius: {zone.radius}m</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            ))}
+
+            {/* Student Real Position & True Accuracy Circle */}
+            {activePoint && (
+              <>
+                {(accuracy || activePoint.accuracy) > 0 && (
+                  <Circle
+                    center={[activePoint.lat, activePoint.lng]}
+                    radius={accuracy || activePoint.accuracy}
+                    pathOptions={{
+                      color: isSharing ? '#10b981' : '#06b6d4',
+                      fillColor: isSharing ? '#10b981' : '#06b6d4',
+                      fillOpacity: 0.16,
+                      weight: 1.5
+                    }}
+                  />
                 )}
-              </div>
-            </Popup>
-          </Marker>
-        </MapContainer>
-
-        {/* Map Floating Legend */}
-        <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md p-2.5 rounded-xl border border-slate-200/90 shadow-md text-[11px] space-y-1 z-10 max-w-xs pointer-events-auto">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
-            <span className="text-slate-700 font-medium">Cyan Pulse: Your Live Location</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
-            <span className="text-slate-700 font-medium">Orange Circle: Campus Canteen & Food Court</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
-            <span className="text-slate-700 font-medium">Pink Circle: Student Hostels</span>
-          </div>
+                <Marker
+                  position={[activePoint.lat, activePoint.lng]}
+                  icon={createMyLocationIcon(currentUser?.name, isSharing, waitingForBetterFix)}
+                >
+                  <Popup>
+                    <div className="p-2.5 text-xs text-navy-950 space-y-1 min-w-[180px]">
+                      <p className="font-bold">{currentUser?.name}</p>
+                      <p className="text-cyan-700 font-semibold">{currentPlace || 'Current GPS Position'}</p>
+                      <p className="font-mono text-[11px]">
+                        {activePoint.lat.toFixed(6)}, {activePoint.lng.toFixed(6)}
+                      </p>
+                      <p className="text-slate-500">Accuracy: ±{accuracy ?? activePoint.accuracy ?? '?'} m</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              </>
+            )}
+          </MapContainer>
         </div>
       </div>
+
+      {/* Camera QR Scanner Modal */}
+      <Modal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        title="Scan Faculty Session QR Code"
+        subtitle="Point your camera at the QR code shown by your faculty"
+        maxWidth="max-w-sm"
+      >
+        <div className="space-y-3 text-xs">
+          {scannerError ? (
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">
+              {scannerError}
+            </div>
+          ) : (
+            <div id="clidge-student-qr-reader" className="w-full rounded-2xl overflow-hidden bg-black min-h-[260px]" />
+          )}
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setScannerOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

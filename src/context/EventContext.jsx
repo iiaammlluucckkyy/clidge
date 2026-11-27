@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
-  fetchAllEvents,
+  subscribeCollegeEvents,
   createEventRecord,
   updateEventRecord,
+  deleteEventRecord,
   cancelEventRecord,
   endEventRecord,
   fetchEventParticipants,
@@ -12,7 +13,6 @@ import {
 } from '../services/eventService.js';
 import { useAuth } from './AuthContext';
 import { useLocation } from './LocationContext';
-import { flaskApi } from '../services/flaskApi';
 
 const EventContext = createContext();
 
@@ -25,30 +25,34 @@ export const EventProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [filterStatus, setFilterStatus] = useState('All');
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'upcoming', 'joined', 'created', 'history'
+  const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [errorNotification, setErrorNotification] = useState(null);
   const [successNotification, setSuccessNotification] = useState(null);
 
-  // Load initial events and participants
-  const refreshEvents = async () => {
-    try {
-      const data = await fetchAllEvents();
-      setEvents(data);
-      const parts = getLocalParticipants();
-      setParticipantsList(parts);
-    } catch (err) {
-      console.error('Failed to load events:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Real-time subscription scoped strictly to currentUser's collegeCode!
+  // Never shows fake/sample events — a new college/student sees [] immediately.
   useEffect(() => {
-    refreshEvents();
-  }, [currentUser]);
+    if (!currentUser?.collegeCode) {
+      setEvents([]);
+      setParticipantsList([]);
+      setIsLoading(false);
+      return;
+    }
 
-  // Clear notifications after 4 seconds
+    setIsLoading(true);
+    const unsub = subscribeCollegeEvents(currentUser.collegeCode, (collegeEvents) => {
+      setEvents(collegeEvents);
+      const parts = getLocalParticipants().filter(
+        p => !p.collegeCode || p.collegeCode === currentUser.collegeCode
+      );
+      setParticipantsList(parts);
+      setIsLoading(false);
+    });
+
+    return () => unsub && unsub();
+  }, [currentUser?.collegeCode, currentUser?.uid]);
+
   useEffect(() => {
     if (errorNotification || successNotification) {
       const timer = setTimeout(() => {
@@ -59,36 +63,30 @@ export const EventProvider = ({ children }) => {
     }
   }, [errorNotification, successNotification]);
 
-  // Selected event
   const selectedEvent = useMemo(() => {
-    return events.find(e => (e.id === selectedEventId || e.eventId === selectedEventId)) || null;
+    return events.find(e => e.id === selectedEventId || e.eventId === selectedEventId) || null;
   }, [events, selectedEventId]);
 
-  // Check if current logged-in student has joined an event
   const isStudentJoined = (eventId) => {
     if (!currentUser || currentUser.role !== 'student') return false;
     return participantsList.some(
-      p => (p.eventId === eventId) && (p.studentId === currentUser.uid) && p.sharingStatus !== 'Left'
+      p => p.eventId === eventId && p.studentId === currentUser.uid && p.sharingStatus !== 'Left'
     );
   };
 
-  // Get participation record for current student
   const getStudentParticipation = (eventId) => {
     if (!currentUser) return null;
     return participantsList.find(
-      p => (p.eventId === eventId) && (p.studentId === currentUser.uid) && p.sharingStatus !== 'Left'
+      p => p.eventId === eventId && p.studentId === currentUser.uid && p.sharingStatus !== 'Left'
     ) || null;
   };
 
-  // TEACHER: Create Event
   const createEvent = async (eventFormData) => {
     try {
       setErrorNotification(null);
       const newEvt = await createEventRecord(eventFormData, currentUser);
       setEvents(prev => [newEvt, ...prev.filter(e => e.id !== newEvt.id)]);
-      setSuccessNotification(`Event "${newEvt.title}" published successfully!`);
-      // Notify flask stub if connected
-      flaskApi.createEvent(newEvt).catch(() => {});
+      setSuccessNotification(`Event "${newEvt.title}" published for ${currentUser.collegeName || 'your college'}!`);
       return newEvt;
     } catch (err) {
       setErrorNotification(err.message);
@@ -96,13 +94,12 @@ export const EventProvider = ({ children }) => {
     }
   };
 
-  // TEACHER: Edit Event
   const updateEvent = async (eventId, updateData) => {
     try {
       setErrorNotification(null);
       const updated = await updateEventRecord(eventId, updateData, currentUser);
       setEvents(prev => prev.map(e => (e.id === eventId || e.eventId === eventId) ? updated : e));
-      setSuccessNotification(`Event updated successfully.`);
+      setSuccessNotification('Event updated successfully.');
       return updated;
     } catch (err) {
       setErrorNotification(err.message);
@@ -110,21 +107,29 @@ export const EventProvider = ({ children }) => {
     }
   };
 
-  // TEACHER: Cancel Event
+  const deleteEvent = async (eventId) => {
+    try {
+      setErrorNotification(null);
+      await deleteEventRecord(eventId, currentUser);
+      setEvents(prev => prev.filter(e => e.id !== eventId && e.eventId !== eventId));
+      setSuccessNotification('Event deleted.');
+      return true;
+    } catch (err) {
+      setErrorNotification(err.message);
+      throw err;
+    }
+  };
+
   const cancelEvent = async (eventId) => {
     try {
       setErrorNotification(null);
       const cancelled = await cancelEventRecord(eventId, currentUser);
       setEvents(prev => prev.map(e => (e.id === eventId || e.eventId === eventId) ? cancelled : e));
-      
-      // Auto terminate participant location sharing
       if (locationCtx?.endLocationSharingForEvent) {
         locationCtx.endLocationSharingForEvent(eventId);
       }
-      const parts = getLocalParticipants();
-      setParticipantsList(parts);
-
-      setSuccessNotification('Event has been cancelled. Student location sharing terminated.');
+      setParticipantsList(getLocalParticipants());
+      setSuccessNotification('Event cancelled.');
       return cancelled;
     } catch (err) {
       setErrorNotification(err.message);
@@ -132,21 +137,16 @@ export const EventProvider = ({ children }) => {
     }
   };
 
-  // TEACHER: End Event
   const endEvent = async (eventId) => {
     try {
       setErrorNotification(null);
       const ended = await endEventRecord(eventId, currentUser);
       setEvents(prev => prev.map(e => (e.id === eventId || e.eventId === eventId) ? ended : e));
-
-      // Auto terminate participant location sharing
       if (locationCtx?.endLocationSharingForEvent) {
         locationCtx.endLocationSharingForEvent(eventId);
       }
-      const parts = getLocalParticipants();
-      setParticipantsList(parts);
-
-      setSuccessNotification('Event marked as Completed. Location sharing automatically ended.');
+      setParticipantsList(getLocalParticipants());
+      setSuccessNotification('Event ended.');
       return ended;
     } catch (err) {
       setErrorNotification(err.message);
@@ -154,30 +154,17 @@ export const EventProvider = ({ children }) => {
     }
   };
 
-  // TEACHER: Fetch Participants
   const fetchParticipants = async (eventId) => {
-    try {
-      return await fetchEventParticipants(eventId, currentUser);
-    } catch (err) {
-      setErrorNotification(err.message);
-      throw err;
-    }
+    return await fetchEventParticipants(eventId, currentUser);
   };
 
-  // STUDENT: Join Event
   const joinEvent = async (eventId, sharingConsent = true) => {
     try {
       setErrorNotification(null);
       const result = await joinEventRecord(eventId, currentUser, sharingConsent);
-      
-      // Update local event registeredCount
       setEvents(prev => prev.map(e => (e.id === eventId || e.eventId === eventId) ? result.event : e));
-      
-      // Update participants list
-      const parts = getLocalParticipants();
-      setParticipantsList(parts);
-
-      setSuccessNotification(`You have joined "${result.event.title}"! Geofencing sharing active.`);
+      setParticipantsList(getLocalParticipants());
+      setSuccessNotification(`Joined "${result.event.title}"!`);
       return result;
     } catch (err) {
       setErrorNotification(err.message);
@@ -185,25 +172,13 @@ export const EventProvider = ({ children }) => {
     }
   };
 
-  // STUDENT: Leave Event
   const leaveEvent = async (eventId) => {
     try {
       setErrorNotification(null);
       const result = await leaveEventRecord(eventId, currentUser);
-
-      // Update local event registeredCount
       setEvents(prev => prev.map(e => (e.id === eventId || e.eventId === eventId) ? result.event : e));
-
-      // Update participants list
-      const parts = getLocalParticipants();
-      setParticipantsList(parts);
-
-      // Disable sharing if leaving active event
-      if (locationCtx?.activeApprovedEvent?.id === eventId) {
-        locationCtx.endLocationSharingForEvent(eventId);
-      }
-
-      setSuccessNotification('You have unregistered from the event.');
+      setParticipantsList(getLocalParticipants());
+      setSuccessNotification('Unregistered from event.');
       return result;
     } catch (err) {
       setErrorNotification(err.message);
@@ -211,25 +186,6 @@ export const EventProvider = ({ children }) => {
     }
   };
 
-  // QR Check-in compatibility helper
-  const checkInToEvent = (eventId, qrCode = '') => {
-    const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setEvents(prev => prev.map(evt => {
-      if (evt.id === eventId || evt.eventId === eventId) {
-        return {
-          ...evt,
-          isJoined: true,
-          currentlyPresent: (evt.currentlyPresent || 0) + 1,
-          studentAttendanceStatus: 'Checked In',
-          studentCheckInTime: timeNow
-        };
-      }
-      return evt;
-    }));
-    setSuccessNotification(`Attendance verified via QR scan at ${timeNow}`);
-  };
-
-  // Filtered lists for Teacher and Student views
   const teacherCreatedEvents = useMemo(() => {
     if (!currentUser || currentUser.role !== 'teacher') return [];
     return events.filter(e => e.teacherId === currentUser.uid);
@@ -253,39 +209,27 @@ export const EventProvider = ({ children }) => {
     return events.filter(e => e.status === 'Completed');
   }, [events]);
 
-  // Filtered events based on search and status
   const filteredEvents = useMemo(() => {
     return events.filter(evt => {
-      // Role-specific tab filtering
       if (activeTab === 'upcoming' && evt.status !== 'Upcoming' && evt.status !== 'Ongoing') return false;
       if (activeTab === 'completed' && evt.status !== 'Completed') return false;
       if (activeTab === 'cancelled' && evt.status !== 'Cancelled') return false;
-      if (activeTab === 'created') {
-        if (!currentUser || evt.teacherId !== currentUser.uid) return false;
-      }
+      if (activeTab === 'created' && (!currentUser || evt.teacherId !== currentUser.uid)) return false;
       if (activeTab === 'joined') {
         if (!currentUser) return false;
         const joined = participantsList.some(
-          p => (p.eventId === evt.id || p.eventId === evt.eventId) &&
-               p.studentId === currentUser.uid &&
-               p.sharingStatus !== 'Left'
+          p => (p.eventId === evt.id || p.eventId === evt.eventId) && p.studentId === currentUser.uid && p.sharingStatus !== 'Left'
         );
         if (!joined) return false;
       }
-      if (activeTab === 'history') {
-        if (evt.status !== 'Completed') return false;
-      }
+      if (activeTab === 'history' && evt.status !== 'Completed') return false;
 
-      // Filter status dropdown/pill
-      const matchesFilter = filterStatus === 'All' ? true : evt.status.toLowerCase() === filterStatus.toLowerCase();
-
-      // Search query
+      const matchesFilter = filterStatus === 'All' ? true : (evt.status || '').toLowerCase() === filterStatus.toLowerCase();
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch = !q ||
         (evt.title && evt.title.toLowerCase().includes(q)) ||
-        (evt.department && evt.department.toLowerCase().includes(q)) ||
         (evt.venue && evt.venue.toLowerCase().includes(q)) ||
-        (evt.category && evt.category.toLowerCase().includes(q));
+        (evt.description && evt.description.toLowerCase().includes(q));
 
       return matchesFilter && matchesSearch;
     });
@@ -303,29 +247,26 @@ export const EventProvider = ({ children }) => {
         participantsList,
         selectedEvent,
         selectedEventId,
+        isLoading,
         filterStatus,
         activeTab,
         searchQuery,
-        isLoading,
         errorNotification,
         successNotification,
         setSelectedEventId,
         setFilterStatus,
         setActiveTab,
         setSearchQuery,
-        setErrorNotification,
-        setSuccessNotification,
-        refreshEvents,
-        isStudentJoined,
-        getStudentParticipation,
         createEvent,
         updateEvent,
+        deleteEvent,
         cancelEvent,
         endEvent,
         fetchParticipants,
         joinEvent,
         leaveEvent,
-        checkInToEvent
+        isStudentJoined,
+        getStudentParticipation
       }}
     >
       {children}

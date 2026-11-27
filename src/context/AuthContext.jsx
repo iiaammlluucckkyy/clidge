@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   auth,
+  db,
+  registerAccount as apiRegisterAccount,
   registerStudent as apiRegisterStudent,
   loginUser as apiLoginUser,
   logoutUser as apiLogoutUser,
@@ -12,73 +14,78 @@ import {
 } from '../services/authService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../services/authService';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => getPersistedSession());
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
 
-  // Initialize and restore authentication on page refresh
   useEffect(() => {
     let isMounted = true;
+    const live = isLiveFirebase();
 
-    // 1. First check persisted session in localStorage for immediate hydration
-    const cachedSession = getPersistedSession();
-    if (cachedSession && isMounted) {
-      setCurrentUser(cachedSession);
+    if (!live) {
+      const cached = getPersistedSession();
+      if (isMounted) {
+        setCurrentUser(cached);
+        setIsLoading(false);
+      }
+      return;
     }
 
-    // 2. Listen to real Firebase Auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!isMounted) return;
 
       if (firebaseUser) {
         try {
-          // Fetch user profile from Firestore `users/{uid}`
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const snap = await getDoc(userDocRef);
-
+          const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (snap.exists() && isMounted) {
-            const firestoreData = snap.data();
+            const data = snap.data();
             const fullProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              ...firestoreData
+              ...data,
+              createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt
             };
             setCurrentUser(fullProfile);
-            localStorage.setItem('clidge_current_session_v4', JSON.stringify(fullProfile));
+            localStorage.setItem('clidge_current_session_v5', JSON.stringify(fullProfile));
           }
         } catch (err) {
-          console.warn('Firestore user fetch onAuthStateChanged:', err);
+          console.warn('Firestore profile restore:', err?.message);
         }
-      } else if (!cachedSession && isMounted) {
+      } else if (isMounted) {
         setCurrentUser(null);
+        localStorage.removeItem('clidge_current_session_v5');
       }
 
-      if (isMounted) {
-        setIsLoading(false);
-      }
+      if (isMounted) setIsLoading(false);
     });
 
-    // Fallback timer so loading screen never hangs
-    const timer = setTimeout(() => {
+    const fallbackTimer = setTimeout(() => {
       if (isMounted) setIsLoading(false);
-    }, 700);
+    }, 1500);
 
     return () => {
       isMounted = false;
       unsubscribe();
-      clearTimeout(timer);
+      clearTimeout(fallbackTimer);
     };
   }, []);
 
-  /**
-   * Register a new student
-   * Enforces role = 'student'
-   */
+  const registerAccount = async (formData) => {
+    setAuthError(null);
+    try {
+      const user = await apiRegisterAccount(formData);
+      setCurrentUser(user);
+      return user;
+    } catch (err) {
+      setAuthError(err.message);
+      throw err;
+    }
+  };
+
   const registerStudent = async (formData) => {
     setAuthError(null);
     try {
@@ -91,14 +98,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Login as Student or Teacher
-   * Verifies required role
-   */
-  const login = async ({ email, password, requiredRole, allowAutoProvision = false }) => {
+  const login = async ({ email, password, requiredRole }) => {
     setAuthError(null);
     try {
-      const user = await apiLoginUser({ email, password, requiredRole, allowAutoProvision });
+      const user = await apiLoginUser({ email, password, requiredRole });
       setCurrentUser(user);
       return user;
     } catch (err) {
@@ -107,32 +110,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Sign Out
-   */
   const logout = async () => {
     setAuthError(null);
     await apiLogoutUser();
     setCurrentUser(null);
   };
 
-  /**
-   * Admin Provision Teacher
-   */
   const provisionTeacher = async (teacherData) => {
     return await apiProvisionTeacher(teacherData);
   };
 
-  /**
-   * Request Password Reset
-   */
   const requestPasswordReset = async (email) => {
     return await apiRequestPasswordReset(email);
   };
 
-  /**
-   * Send Email Verification
-   */
   const sendVerificationEmail = async () => {
     return await apiSendVerificationEmail();
   };
@@ -149,6 +140,7 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         authError,
         isLiveFirebase: isLiveFirebase(),
+        registerAccount,
         registerStudent,
         login,
         logout,

@@ -24,7 +24,8 @@ export const Button = ({
     primary: 'bg-navy-900 text-white hover:bg-navy-800 shadow-sm focus:ring-navy-900 border border-navy-800',
     cyan: 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white hover:from-cyan-600 hover:to-cyan-700 shadow-glow-cyan focus:ring-cyan-400 border border-cyan-400/30',
     emerald: 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-sm focus:ring-emerald-400 border border-emerald-400/30',
-    outline: 'border border-slate-200 bg-white text-navy-900 hover:bg-slate-50 hover:border-slate-300 focus:ring-navy-900 shadow-sm',
+    outline: 'border border-slate-200 dark:border-navy-700 bg-white dark:bg-navy-800 text-navy-900 dark:text-white hover:bg-slate-50 dark:hover:bg-navy-700 hover:border-slate-300 focus:ring-navy-900 shadow-sm',
+    'dark-outline': 'border border-slate-600 bg-navy-800/80 text-white hover:bg-navy-800 hover:border-cyan-400 focus:ring-cyan-400 shadow-sm',
     ghost: 'text-slate-600 hover:text-navy-900 hover:bg-slate-100 focus:ring-slate-300',
     danger: 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm focus:ring-rose-500'
   }[variant] || 'bg-navy-900 text-white';

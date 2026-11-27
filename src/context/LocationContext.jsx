@@ -1,438 +1,397 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { flaskApi } from '../services/flaskApi';
 import { useAuth } from './AuthContext';
-import { getCampusLandmark, calculateHaversineMeters } from '../data/campusZones.js';
+import { subscribeCollegeZones } from '../services/zoneService.js';
+import { calculateHaversineMeters, getCampusLandmark } from '../data/campusZones.js';
+import { reverseGeocodeAddress } from '../services/geocodingService.js';
+import {
+  validateSessionForStudent,
+  subscribeSingleSession,
+  publishStudentSessionLocation,
+  stopStudentSessionLocation
+} from '../services/sessionService.js';
 
 const LocationContext = createContext();
 
-// Default 2-minute configurable update interval (120,000 milliseconds)
-const DEFAULT_INTERVAL_MS = 120 * 1000;
-// Stale threshold: 5 minutes (300 seconds)
-const STALE_THRESHOLD_MS = 300 * 1000;
+const MAX_ACCEPTED_ACCURACY_METERS = 150;
+const WRITE_MIN_INTERVAL_MS = 3500;
+const STALE_THRESHOLD_MS = 60 * 1000; // 60 seconds -> LIVE vs Stale tag
 
 export const LocationProvider = ({ children }) => {
   const { currentUser } = useAuth();
 
-  // GPS Sharing State
-  // Rule 1: Starts as false. Browser permission is ONLY requested after student joins approved event and explicitly enables sharing.
+  // Sharing & session state
+  const [activeSession, setActiveSession] = useState(null);
+  const [sessionError, setSessionError] = useState(null);
   const [isSharing, setIsSharing] = useState(false);
-  const [geofenceStatus, setGeofenceStatus] = useState('Standby'); // 'Inside Venue' | 'Outside Bounds' | 'Offline' | 'Standby' | 'Session Ended (GPS Off)'
-  const [stalenessStatus, setStalenessStatus] = useState('UNAVAILABLE'); // 'LIVE' | 'OUTDATED' | 'UNAVAILABLE'
-  
-  // Current coordinates (calibrated to Muthayammal Engineering College campus center)
-  const [coordinates, setCoordinates] = useState({ lat: 11.4450, lng: 78.2264 });
-  const [accuracy, setAccuracy] = useState(3.5); // meters
-  const [batteryLevel, setBatteryLevel] = useState(88);
-  const [lastPingTime, setLastPingTime] = useState(null);
-  const [lastKnownLocation, setLastKnownLocation] = useState(null);
+
+  // Real device coordinates (null until real GPS acquired — never fake!)
+  const [coordinates, setCoordinates] = useState(null);
+  const [previewCoordinates, setPreviewCoordinates] = useState(null);
+  const [accuracy, setAccuracy] = useState(null);
+  const [currentPlace, setCurrentPlace] = useState('');
+  const [matchedZoneName, setMatchedZoneName] = useState(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const [waitingForBetterFix, setWaitingForBetterFix] = useState(false);
+  const [lowAccuracyValue, setLowAccuracyValue] = useState(null);
+  const [gpsError, setGpsError] = useState(null);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [pingCount, setPingCount] = useState(0);
 
-  // Active Approved Event for student session (strictly null until student registers/joins an event)
+  // College custom zones
+  const [collegeZones, setCollegeZones] = useState([]);
+
+  // Legacy-safe fields kept so secondary badges never break
   const [activeApprovedEvent, setActiveApprovedEvent] = useState(null);
-
-  // Venue & Zone details
-  const [currentZone, setCurrentZone] = useState('MEC Campus Standby');
-  const [zoneCode, setZoneCode] = useState('MEC-CAMPUS');
-
-  // Error & Permission states
-  const [gpsError, setGpsError] = useState(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isTransmitting, setIsTransmitting] = useState(false);
-
-  // Configurable Interval (in seconds)
-  const [updateIntervalSeconds, setUpdateIntervalSeconds] = useState(120);
+  const [stalenessStatus, setStalenessStatus] = useState('UNAVAILABLE');
 
   const watchIdRef = useRef(null);
-  const intervalTimerRef = useRef(null);
+  const lastWriteAtRef = useRef(0);
+  const lastWrittenCoordsRef = useRef(null);
+  const collegeZonesRef = useRef([]);
 
-  // Monitor online / offline network connectivity
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      setGpsError(null);
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      setGpsError('Internet disconnected: Location updates queued.');
-    };
+    collegeZonesRef.current = collegeZones;
+  }, [collegeZones]);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+  // Subscribe to this college's zones
+  useEffect(() => {
+    if (!currentUser?.collegeCode) {
+      setCollegeZones([]);
+      return;
+    }
+    const unsub = subscribeCollegeZones(currentUser.collegeCode, (zones) => {
+      setCollegeZones(zones);
+    });
+    return () => unsub && unsub();
+  }, [currentUser?.collegeCode]);
 
+  // Monitor network connectivity
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
     };
   }, []);
 
-  // Monitor staleness of last known location (every 10 seconds)
+  // Passively center map ONLY if browser geolocation permission is already granted
+  // (Never prompts without explicit user click; never shares automatically)
   useEffect(() => {
-    const stalenessChecker = setInterval(() => {
-      if (!lastKnownLocation || !lastKnownLocation.timestamp) {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((perm) => {
+          if (perm.state === 'granted') {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                setPreviewCoordinates({
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                  accuracy: Math.round(pos.coords.accuracy || 0)
+                });
+              },
+              () => {},
+              { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  // Monitor staleness for current user's own indicator
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!lastUpdatedAt) {
         setStalenessStatus('UNAVAILABLE');
         return;
       }
+      const age = Date.now() - new Date(lastUpdatedAt).getTime();
+      setStalenessStatus(isSharing && age <= STALE_THRESHOLD_MS ? 'LIVE' : 'OUTDATED');
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [lastUpdatedAt, isSharing]);
 
-      const elapsedMs = Date.now() - new Date(lastKnownLocation.timestamp).getTime();
-      if (elapsedMs <= STALE_THRESHOLD_MS) {
-        // Within 5 minutes
-        setStalenessStatus(isSharing ? 'LIVE' : 'OUTDATED');
+  // Clean clearWatch helper
+  const clearGeoWatch = useCallback(() => {
+    if (watchIdRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  }, []);
+
+  // Stop sharing completely
+  const stopSharing = useCallback(async (reasonMessage = null) => {
+    clearGeoWatch();
+    setIsSharing(false);
+    setWaitingForBetterFix(false);
+    setLowAccuracyValue(null);
+    if (reasonMessage) {
+      setSessionError(reasonMessage);
+    }
+    if (activeSession?.sessionCode && currentUser?.uid) {
+      await stopStudentSessionLocation(activeSession.sessionCode, currentUser);
+    }
+  }, [clearGeoWatch, activeSession?.sessionCode, currentUser]);
+
+  // Listen to active session status: if faculty clicks "End session", stop student sharing immediately
+  useEffect(() => {
+    if (!activeSession?.sessionCode) return;
+    const unsub = subscribeSingleSession(activeSession.sessionCode, (updatedSession) => {
+      if (!updatedSession || !updatedSession.active) {
+        stopSharing('This location session has been ended by your faculty.');
+        setActiveSession(updatedSession);
       } else {
-        // Older than 5 minutes -> Strictly OUTDATED (Never label old location as LIVE)
-        setStalenessStatus('OUTDATED');
+        setActiveSession(updatedSession);
       }
-    }, 10000);
+    });
+    return () => unsub && unsub();
+  }, [activeSession?.sessionCode, stopSharing]);
 
-    return () => clearInterval(stalenessChecker);
-  }, [lastKnownLocation, isSharing]);
-
-  // Transmit current location to Flask backend
-  const transmitLocationToBackend = useCallback(async (lat, lng, acc) => {
-    // Privacy Rule: Do not collect or send location outside active approved events
-    if (!activeApprovedEvent || activeApprovedEvent.status === 'Completed' || activeApprovedEvent.status === 'Cancelled') {
+  // Clean up watch on unmount or logout
+  useEffect(() => {
+    if (!currentUser) {
+      clearGeoWatch();
       setIsSharing(false);
-      setGeofenceStatus('Session Ended (GPS Off)');
-      return;
+      setActiveSession(null);
+      setCoordinates(null);
+      setAccuracy(null);
+      setCurrentPlace('');
     }
+    return () => clearGeoWatch();
+  }, [currentUser, clearGeoWatch]);
 
-    if (!navigator.onLine) {
-      setGpsError('Internet disconnected: Cannot send location.');
-      return;
-    }
+  // Validate a session code without auto-starting sharing
+  const joinSessionCode = useCallback(async (rawCode) => {
+    setSessionError(null);
+    const session = await validateSessionForStudent(rawCode, currentUser);
+    setActiveSession(session);
+    return session;
+  }, [currentUser]);
 
-    setIsTransmitting(true);
+  // User-triggered center map on GPS (does NOT start sharing to faculty)
+  const centerOnMyGps = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        const msg = 'Geolocation is not supported by this browser. Use Chrome or Safari on HTTPS.';
+        setGpsError(msg);
+        reject(new Error(msg));
+        return;
+      }
+      setGpsError(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: Math.round(pos.coords.accuracy || 0)
+          };
+          setPreviewCoordinates(coords);
+          resolve(coords);
+        },
+        (err) => {
+          let msg = 'Unable to get your GPS position.';
+          if (err.code === err.PERMISSION_DENIED) {
+            msg = 'Location permission denied. Please enable Location access in your browser settings and try again.';
+          } else if (err.code === err.POSITION_UNAVAILABLE) {
+            msg = 'GPS position is unavailable. Turn on device Location / GPS and move near a window or outdoors.';
+          } else if (err.code === err.TIMEOUT) {
+            msg = 'GPS request timed out after 20 seconds. Move closer to open sky and retry.';
+          }
+          setGpsError(msg);
+          reject(new Error(msg));
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+      );
+    });
+  }, []);
+
+  /**
+   * Explicit Start Sharing: runs ONLY when student taps "Start sharing".
+   */
+  const startSharing = useCallback(async (sessionCodeOverride = null) => {
     setGpsError(null);
+    setSessionError(null);
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsError('Your browser does not support GPS location tracking. Please open on a smartphone browser over HTTPS.');
+      return;
+    }
+
+    let sessionToUse = activeSession;
+    const code = sessionCodeOverride?.trim() || activeSession?.sessionCode;
+    if (!code) {
+      setSessionError('Please enter a Session Code or scan the faculty QR code first.');
+      return;
+    }
 
     try {
-      // Get Firebase Auth token if available
-      let token = null;
-      if (currentUser?.getIdToken) {
-        try {
-          token = await currentUser.getIdToken();
-        } catch {
-          token = `dev-token-${currentUser.uid}`;
-        }
-      } else if (currentUser?.uid) {
-        token = `dev-token-${currentUser.uid}`;
-      } else {
-        token = 'dev-token-std-731622csr045';
-      }
-
-      const clientTimestamp = new Date().toISOString();
-      const response = await flaskApi.submitLocation({
-        eventId: activeApprovedEvent.id,
-        latitude: lat,
-        longitude: lng,
-        accuracy: acc,
-        timestamp: clientTimestamp,
-        token
-      });
-
-      // Update Last Known Location
-      const record = {
-        latitude: lat,
-        longitude: lng,
-        accuracy: acc,
-        timestamp: clientTimestamp,
-        server_timestamp: response?.location?.server_timestamp || clientTimestamp,
-        is_inside_geofence: response?.location?.is_inside_geofence ?? true
-      };
-
-      setLastKnownLocation(record);
-      setLastPingTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      setPingCount(prev => prev + 1);
-      setStalenessStatus('LIVE');
-
-      // Update geofence boundary display
-      if (response?.location?.is_inside_geofence === false) {
-        setGeofenceStatus('Outside Bounds');
-      } else {
-        setGeofenceStatus('Inside Venue');
-      }
+      sessionToUse = await validateSessionForStudent(code, currentUser);
+      setActiveSession(sessionToUse);
     } catch (err) {
-      setGpsError(err.message || 'Failed to transmit GPS location to server.');
-    } finally {
-      setIsTransmitting(false);
-    }
-  }, [activeApprovedEvent, currentUser]);
-
-  // Function to capture one GPS position from browser
-  const captureBrowserPosition = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGpsError('Geolocation is not supported by your browser.');
-      setIsSharing(false);
+      setSessionError(err.message);
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy: acc } = position.coords;
-        setCoordinates({ lat: latitude, lng: longitude });
-        setAccuracy(Math.round(acc));
-        setGpsError(null);
+    clearGeoWatch();
+    setIsSharing(true);
+    setWaitingForBetterFix(false);
+    lastWriteAtRef.current = 0;
 
-        // Resolve real-time campus landmark
-        const landmark = getCampusLandmark(latitude, longitude);
-        setCurrentZone(landmark.landmark);
-        setZoneCode(landmark.code);
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (position) => {
+        const { latitude, longitude, accuracy: rawAcc } = position.coords;
+        const accMeters = Math.round(rawAcc || 0);
 
-        // Update geofence status if active event exists
-        if (activeApprovedEvent) {
-          const dist = calculateHaversineMeters(latitude, longitude, activeApprovedEvent.latitude, activeApprovedEvent.longitude);
-          const isInside = dist !== null ? dist <= (activeApprovedEvent.radius || 65) : false;
-          setGeofenceStatus(isInside ? 'Inside Venue' : 'Outside Bounds');
-        } else {
-          setGeofenceStatus('Standby');
+        setPreviewCoordinates({ lat: latitude, lng: longitude, accuracy: accMeters });
+
+        // Reject / ignore fixes worse than 150 m
+        if (accMeters > MAX_ACCEPTED_ACCURACY_METERS) {
+          setWaitingForBetterFix(true);
+          setLowAccuracyValue(accMeters);
+          return;
         }
 
-        transmitLocationToBackend(latitude, longitude, acc);
+        setWaitingForBetterFix(false);
+        setLowAccuracyValue(null);
+        setGpsError(null);
+        setCoordinates({ lat: latitude, lng: longitude });
+        setAccuracy(accMeters);
+
+        // Match against this college's defined Zones ONLY if inside zone radius
+        const landmarkMatch = getCampusLandmark(latitude, longitude, collegeZonesRef.current);
+        let placeLabel = '';
+        let zoneName = null;
+        let isInsideZone = false;
+
+        if (landmarkMatch.isInside && landmarkMatch.landmark) {
+          placeLabel = landmarkMatch.landmark;
+          zoneName = landmarkMatch.landmark;
+          isInsideZone = true;
+        } else {
+          // Otherwise use rate-limited Nominatim reverse geocoding (1 req / 5s)
+          placeLabel = await reverseGeocodeAddress(latitude, longitude);
+        }
+
+        setCurrentPlace(placeLabel);
+        setMatchedZoneName(zoneName);
+        const nowIso = new Date().toISOString();
+        setLastUpdatedAt(nowIso);
+        setStalenessStatus('LIVE');
+
+        // Push to Firestore / Demo Session store (throttled cleanly)
+        const elapsed = Date.now() - lastWriteAtRef.current;
+        const moved = lastWrittenCoordsRef.current
+          ? calculateHaversineMeters(
+              lastWrittenCoordsRef.current.lat,
+              lastWrittenCoordsRef.current.lng,
+              latitude,
+              longitude
+            )
+          : 999;
+
+        if (elapsed >= WRITE_MIN_INTERVAL_MS || moved >= 8) {
+          lastWriteAtRef.current = Date.now();
+          lastWrittenCoordsRef.current = { lat: latitude, lng: longitude };
+          try {
+            await publishStudentSessionLocation(sessionToUse.sessionCode, currentUser, {
+              latitude,
+              longitude,
+              accuracy: accMeters,
+              placeName: placeLabel,
+              zoneName,
+              isInsideZone
+            });
+            setPingCount(c => c + 1);
+          } catch (err) {
+            setGpsError(err.message || 'Could not upload GPS location.');
+          }
+        }
       },
       (error) => {
-        let message = 'GPS error occurred.';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            message = 'GPS permission denied by user. Please allow location access in your browser to verify campus attendance.';
-            setIsSharing(false);
-            setGeofenceStatus('Offline');
-            break;
-          case error.POSITION_UNAVAILABLE:
-            message = 'GPS position unavailable. Please verify device location services are turned on.';
-            break;
-          case error.TIMEOUT:
-            message = 'GPS signal request timed out. Retrying on next interval.';
-            break;
-          default:
-            message = error.message || 'Unable to acquire location.';
+        if (error.code === error.PERMISSION_DENIED) {
+          setGpsError(
+            'Location permission denied. Tap the lock/settings icon in your browser address bar, set Location to Allow, and tap Start sharing again.'
+          );
+          clearGeoWatch();
+          setIsSharing(false);
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          setGpsError(
+            'GPS position unavailable. Make sure your device Location / GPS toggle is ON and try moving near a window or outdoors.'
+          );
+        } else if (error.code === error.TIMEOUT) {
+          setGpsError(
+            'GPS signal timed out after 20 seconds. Waiting for satellite lock — step closer to open sky.'
+          );
+        } else {
+          setGpsError(error.message || 'GPS error occurred.');
         }
-        setGpsError(message);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0 // Always acquire live satellite/hardware fix
+        maximumAge: 0,
+        timeout: 20000
       }
     );
-  }, [transmitLocationToBackend, activeApprovedEvent]);
+  }, [activeSession, currentUser, clearGeoWatch]);
 
-  // Initial passive hardware GNSS fix on mount
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude, accuracy: acc } = pos.coords;
-        setCoordinates({ lat: latitude, lng: longitude });
-        setAccuracy(Math.round(acc));
-        const landmark = getCampusLandmark(latitude, longitude);
-        setCurrentZone(landmark.landmark);
-        setZoneCode(landmark.code);
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
-  }, []);
+  const endLocationSharingForEvent = useCallback(() => {
+    stopSharing();
+  }, [stopSharing]);
 
-  // Periodic heartbeat runner when sharing is enabled
-  useEffect(() => {
-    // Stop sharing if event ended
-    if (activeApprovedEvent && (activeApprovedEvent.status === 'Completed' || activeApprovedEvent.status === 'Cancelled')) {
-      setIsSharing(false);
-      setGeofenceStatus('Session Ended (GPS Off)');
-      return;
-    }
+  const startBackgroundSharing = useCallback(() => {}, []);
+  const toggleSharing = useCallback(() => {
+    if (isSharing) stopSharing();
+    else startSharing();
+  }, [isSharing, startSharing, stopSharing]);
 
-    if (!isSharing) {
-      if (watchIdRef.current !== null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      if (intervalTimerRef.current) {
-        clearInterval(intervalTimerRef.current);
-        intervalTimerRef.current = null;
-      }
-      return;
-    }
-
-    // Capture initial position immediately
-    captureBrowserPosition();
-
-    // Start configurable recurring interval
-    const intervalMs = Math.max(10, updateIntervalSeconds) * 1000;
-    intervalTimerRef.current = setInterval(() => {
-      captureBrowserPosition();
-    }, intervalMs);
-
-    return () => {
-      if (intervalTimerRef.current) {
-        clearInterval(intervalTimerRef.current);
-        intervalTimerRef.current = null;
-      }
-    };
-  }, [isSharing, updateIntervalSeconds, activeApprovedEvent, captureBrowserPosition]);
-
-  // Silent background location sharing for student sessions (no UI controls needed)
-  const startBackgroundSharing = useCallback(() => {
-    if (!activeApprovedEvent || activeApprovedEvent.status === 'Completed' || activeApprovedEvent.status === 'Cancelled') {
-      return;
-    }
-    if (!isSharing) {
-      setGpsError(null);
-      setIsSharing(true);
-      setGeofenceStatus('Inside Venue');
-      captureBrowserPosition();
-    }
-  }, [activeApprovedEvent, isSharing, captureBrowserPosition]);
-
-  // Explicit START / STOP location sharing toggle
-  const toggleSharing = () => {
-    // Privacy Rule: Verify event is approved and active
-    if (!activeApprovedEvent || activeApprovedEvent.status === 'Completed' || activeApprovedEvent.status === 'Cancelled') {
-      alert('Location sharing cannot be activated because the campus event has ended or been cancelled.');
-      setIsSharing(false);
-      setGeofenceStatus('Session Ended (GPS Off)');
-      return;
-    }
-
-    if (isSharing) {
-      // Allow students to stop sharing
-      setIsSharing(false);
-      setGeofenceStatus('Offline');
-      setGpsError(null);
-    } else {
-      // Explicitly enable sharing
-      setGpsError(null);
-      setIsSharing(true);
-      setGeofenceStatus('Inside Venue');
-      // Triggers browser location permission check
-      captureBrowserPosition();
-    }
-  };
-
-  // Explicit stop sharing function
-  const stopSharing = () => {
-    setIsSharing(false);
-    setGeofenceStatus('Offline');
-    setGpsError(null);
-  };
-
-  // Automatically end location sharing when an event ends
-  const endLocationSharingForEvent = (endedEventId) => {
-    if (activeApprovedEvent?.id === endedEventId) {
-      setIsSharing(false);
-      setGeofenceStatus('Session Ended (GPS Off)');
-      setActiveApprovedEvent(prev => prev ? { ...prev, status: 'Completed' } : null);
-    }
-  };
-
-  // Manual trigger for testing / immediate update
-  const sendImmediateLocationPing = () => {
-    if (!isSharing) {
-      setIsSharing(true);
-    }
-    captureBrowserPosition();
-  };
-
-  // Simulation helper for Viva demonstration & Testing across MEC Campus landmarks
-  const simulateMovement = (target = 'toggle', optionalZone = null) => {
-    if (activeApprovedEvent && (activeApprovedEvent.status === 'Completed' || activeApprovedEvent.status === 'Cancelled')) {
-      alert('Event has ended. Location tracking is disabled.');
-      return;
-    }
-
-    let newLat = 11.4448;
-    let newLng = 78.2263;
-    let newZone = 'Main Auditorium (Kamarajar Hall)';
-    let newCode = 'ZONE-A1';
-    let newStatus = 'Inside Venue';
-
-    if (target === 'Canteen' || target === 'zone-canteen') {
-      newLat = 11.4447;
-      newLng = 78.2260;
-      newZone = 'Campus Canteen & Food Court';
-      newCode = 'ZONE-F1';
-      newStatus = activeApprovedEvent ? 'Outside Bounds' : 'Standby';
-    } else if (target === 'Hostel' || target === 'zone-hostel') {
-      newLat = 11.4456;
-      newLng = 78.2272;
-      newZone = 'Student Hostels (Boys & Girls Blocks)';
-      newCode = 'ZONE-H1';
-      newStatus = activeApprovedEvent ? 'Outside Bounds' : 'Standby';
-    } else if (target === 'Auditorium' || target === 'zone-auditorium' || target === 'Inside Venue') {
-      newLat = 11.4448;
-      newLng = 78.2263;
-      newZone = 'Main Auditorium (Kamarajar Hall)';
-      newCode = 'ZONE-A1';
-      newStatus = 'Inside Venue';
-    } else if (target === 'Outside Bounds' || target === 'outside') {
-      newLat = 11.4410;
-      newLng = 78.2210;
-      newZone = 'Off-Campus Perimeter (Rasipuram)';
-      newCode = 'ZONE-OUT';
-      newStatus = 'Outside Bounds';
-    } else {
-      // Toggle rotation between Auditorium -> Canteen -> Hostel -> Outside
-      if (zoneCode === 'ZONE-A1') {
-        newLat = 11.4447;
-        newLng = 78.2260;
-        newZone = 'Campus Canteen & Food Court';
-        newCode = 'ZONE-F1';
-        newStatus = activeApprovedEvent ? 'Outside Bounds' : 'Standby';
-      } else if (zoneCode === 'ZONE-F1') {
-        newLat = 11.4456;
-        newLng = 78.2272;
-        newZone = 'Student Hostels (Boys & Girls Blocks)';
-        newCode = 'ZONE-H1';
-        newStatus = activeApprovedEvent ? 'Outside Bounds' : 'Standby';
-      } else {
-        newLat = 11.4448;
-        newLng = 78.2263;
-        newZone = 'Main Auditorium (Kamarajar Hall)';
-        newCode = 'ZONE-A1';
-        newStatus = 'Inside Venue';
-      }
-    }
-
-    if (optionalZone) {
-      newZone = optionalZone;
-    }
-
-    setCoordinates({ lat: newLat, lng: newLng });
-    setCurrentZone(newZone);
-    setZoneCode(newCode);
-    setGeofenceStatus(newStatus);
-    setAccuracy(3.2);
-
-    if (isSharing) {
-      transmitLocationToBackend(newLat, newLng, 3.2);
-    }
-  };
+  const geofenceStatus = !isSharing
+    ? 'Standby'
+    : waitingForBetterFix
+    ? 'Waiting for GPS fix'
+    : matchedZoneName
+    ? 'Inside Venue'
+    : 'GPS Live';
 
   return (
     <LocationContext.Provider
       value={{
+        activeSession,
+        setActiveSession,
+        sessionError,
+        setSessionError,
+        joinSessionCode,
         isSharing,
-        geofenceStatus,
-        stalenessStatus,
-        currentZone,
-        zoneCode,
         coordinates,
+        previewCoordinates,
         accuracy,
-        batteryLevel,
-        lastPingTime,
-        lastKnownLocation,
-        pingCount,
+        currentPlace,
+        matchedZoneName,
+        lastUpdatedAt,
+        waitingForBetterFix,
+        lowAccuracyValue,
         gpsError,
         isOnline,
-        isTransmitting,
-        updateIntervalSeconds,
+        pingCount,
+        collegeZones,
+        startSharing,
+        stopSharing,
+        centerOnMyGps,
+        // Legacy compatibility props
+        geofenceStatus,
+        stalenessStatus,
+        currentZone: matchedZoneName || currentPlace || 'Not sharing',
+        zoneCode: activeSession?.sessionCode || '',
+        lastPingTime: lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : null,
         activeApprovedEvent,
-        setUpdateIntervalSeconds,
         setActiveApprovedEvent,
         endLocationSharingForEvent,
         startBackgroundSharing,
-        toggleSharing,
-        stopSharing,
-        sendImmediateLocationPing,
-        simulateMovement
+        toggleSharing
       }}
     >
       {children}

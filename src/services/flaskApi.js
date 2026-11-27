@@ -8,7 +8,12 @@
  * - GET  /api/health
  */
 
-const BASE_URL = import.meta.env.VITE_FLASK_API_URL || 'http://localhost:5000/api';
+const rawEnvUrl = import.meta.env.VITE_FLASK_API_URL || '';
+const enableLocalFlask = import.meta.env.VITE_ENABLE_FLASK_API === 'true';
+const isPublicHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:';
+const BASE_URL = rawEnvUrl && !rawEnvUrl.includes('localhost')
+  ? rawEnvUrl
+  : (enableLocalFlask && !isPublicHttps ? (rawEnvUrl || 'http://localhost:5000/api') : '');
 
 class FlaskApiService {
   constructor() {
@@ -20,6 +25,7 @@ class FlaskApiService {
    * Check if the Flask server is online and responding.
    */
   async checkHealth() {
+    if (!this.baseUrl) return { ok: false, error: 'Serverless Firestore mode active' };
     try {
       const response = await fetch(`${this.baseUrl}/health`, {
         method: 'GET',
@@ -103,6 +109,7 @@ class FlaskApiService {
    * Header: Authorization: Bearer <firebase_id_token>
    */
   async getEventLocations(eventId, token) {
+    if (!this.baseUrl) return null;
     if (!navigator.onLine) {
       throw new Error('Internet disconnected: Cannot fetch live student locations.');
     }
@@ -178,6 +185,7 @@ class FlaskApiService {
    * Endpoint: GET /api/events/<event_id>/attendance/qr-token
    */
   async getEventQr(eventId, token) {
+    if (!this.baseUrl) return null;
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -294,6 +302,7 @@ class FlaskApiService {
    * Endpoint: GET /api/events/<event_id>/attendance
    */
   async getEventAttendanceReport(eventId, token) {
+    if (!this.baseUrl) return null;
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -315,6 +324,7 @@ class FlaskApiService {
    * Endpoint: GET /api/attendance/my-history
    */
   async getStudentAttendanceHistory(token) {
+    if (!this.baseUrl) return null;
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 

@@ -2,122 +2,145 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserData() {
+    function userProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function isTeacher() {
-      return isAuthenticated() && getUserData().role == 'teacher';
+    function hasProfile() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isFaculty() {
+      return hasProfile() && userProfile().role == 'teacher';
+    }
+
+    function sameCollege(collegeCode) {
+      return hasProfile() && userProfile().collegeCode == collegeCode;
+    }
+
+    function sessionCollegeCode(sessionCode) {
+      return get(/databases/$(database)/documents/sessions/$(sessionCode)).data.collegeCode;
     }
 
     // ===============================================================
-    // USERS COLLECTION RULES
+    // 1. USERS: Read and write ONLY own profile; role & collegeCode cannot be escalated
     // ===============================================================
     match /users/{userId} {
-      // Students can only view their own user profile. Teachers can view student profiles.
-      allow read: if isOwner(userId) || isTeacher();
+      allow read: if isOwner(userId);
 
       allow create: if isOwner(userId)
-                    && request.resource.data.keys().hasAll(['uid', 'name', 'email', 'registrationNumber', 'department', 'year', 'role', 'createdAt'])
                     && request.resource.data.uid == userId
-                    && request.resource.data.role == 'student';
+                    && request.resource.data.role in ['student', 'teacher']
+                    && request.resource.data.keys().hasAll(['uid', 'name', 'email', 'role', 'collegeCode', 'createdAt']);
 
       allow update: if isOwner(userId)
-                    && request.resource.data.role == resource.data.role;
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.collegeCode == resource.data.collegeCode;
 
       allow delete: if false;
     }
 
     // ===============================================================
-    // EVENTS COLLECTION RULES
+    // 2. COLLEGES: Single-doc lookup allowed so student signup can verify 6-char code
+    // ===============================================================
+    match /colleges/{collegeCode} {
+      allow get: if true;
+      allow list: if false;
+
+      allow create: if isSignedIn()
+                    && request.resource.data.code == collegeCode
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.keys().hasAll(['code', 'name', 'createdBy', 'createdAt']);
+
+      allow update: if isFaculty() && sameCollege(collegeCode);
+      allow delete: if false;
+    }
+
+    // ===============================================================
+    // 3. ZONES (Campus buildings tapped on Satellite map): Scoped strictly per college
+    // ===============================================================
+    match /zones/{zoneId} {
+      allow read: if sameCollege(resource.data.collegeCode);
+
+      allow create: if isFaculty()
+                    && sameCollege(request.resource.data.collegeCode)
+                    && request.resource.data.keys().hasAll(['name', 'latitude', 'longitude', 'radius', 'collegeCode', 'createdBy']);
+
+      allow update, delete: if isFaculty()
+                            && sameCollege(resource.data.collegeCode);
+    }
+
+    // ===============================================================
+    // 4. EVENTS: Scoped strictly per college; only that college's faculty can create/delete
     // ===============================================================
     match /events/{eventId} {
-      // Authenticated users (students & teachers) can read events
-      allow read: if isAuthenticated();
+      allow read: if sameCollege(resource.data.collegeCode);
 
-      // Only verified teachers can create events, and teacherId must match authenticated uid
-      allow create: if isTeacher()
+      allow create: if isFaculty()
+                    && sameCollege(request.resource.data.collegeCode)
                     && request.resource.data.teacherId == request.auth.uid
-                    && request.resource.data.keys().hasAll([
-                      'title', 'description', 'venue', 'date', 'startTime', 'endTime',
-                      'latitude', 'longitude', 'radius', 'teacherId', 'status', 'createdAt'
-                    ]);
+                    && request.resource.data.keys().hasAll(['title', 'venue', 'date', 'description', 'collegeCode', 'teacherId']);
 
-      // Only the teacher who created the event can edit, cancel or end it
-      allow update: if isTeacher()
-                    && resource.data.teacherId == request.auth.uid;
+      allow update, delete: if isFaculty()
+                            && sameCollege(resource.data.collegeCode);
+    }
 
-      // Only the owning teacher can delete an event
-      allow delete: if isTeacher()
-                    && resource.data.teacherId == request.auth.uid;
+    // ===============================================================
+    // 5. LOCATION SESSIONS & REAL-TIME STUDENT LOCATIONS: Scoped strictly per college
+    // ===============================================================
+    match /sessions/{sessionCode} {
+      allow read: if sameCollege(resource.data.collegeCode);
 
-      // Live location updates per student within an event
-      match /live_locations/{studentId} {
-        // Students can only write their own GPS coordinates
-        allow write: if isOwner(studentId);
-        // Privacy protection: Students can only read their own location. Teachers can read participants.
-        allow read: if isOwner(studentId) || isTeacher();
+      allow create: if isFaculty()
+                    && sameCollege(request.resource.data.collegeCode)
+                    && request.resource.data.facultyUid == request.auth.uid
+                    && request.resource.data.keys().hasAll(['sessionCode', 'collegeCode', 'facultyUid', 'active', 'createdAt']);
+
+      allow update, delete: if isFaculty()
+                            && sameCollege(resource.data.collegeCode);
+
+      match /locations/{studentUid} {
+        // Only the student themselves or faculty from the SAME college can view
+        allow read: if sameCollege(sessionCollegeCode(sessionCode))
+                    && (isOwner(studentUid) || isFaculty());
+
+        // Students can write ONLY their own location, ONLY into their own college's active session
+        allow create, update: if isOwner(studentUid)
+                              && sameCollege(sessionCollegeCode(sessionCode))
+                              && request.resource.data.studentUid == request.auth.uid
+                              && request.resource.data.collegeCode == userProfile().collegeCode
+                              && get(/databases/$(database)/documents/sessions/$(sessionCode)).data.active == true;
+
+        // Students can mark/remove their own location entry
+        allow delete: if isOwner(studentUid) && sameCollege(sessionCollegeCode(sessionCode));
       }
     }
 
     // ===============================================================
-    // EVENT PARTICIPANTS COLLECTION RULES
+    // 6. EVENT PARTICIPANTS & ATTENDANCE (Optional event RSVP tracking)
     // ===============================================================
     match /eventParticipants/{participantId} {
-      // Authenticated users can view participants
-      allow read: if isAuthenticated();
-
-      // Students can join an event:
-      // - Must be authenticated
-      // - studentId must match authenticated uid
-      // - sharingConsent must be true
-      // - Status starts as 'Active' or 'Pending'
-      allow create: if isAuthenticated()
+      allow read: if sameCollege(resource.data.collegeCode);
+      allow create: if isSignedIn()
                     && request.resource.data.studentId == request.auth.uid
-                    && request.resource.data.sharingConsent == true
-                    && request.resource.data.keys().hasAll([
-                      'eventId', 'studentId', 'joinedAt', 'sharingConsent', 'sharingStatus'
-                    ]);
-
-      // Student can update their own participation (e.g. leave before start or pause sharing)
-      // Owning teacher can update participant sharing status (e.g. when ending event)
-      allow update: if isAuthenticated() && (
-        request.auth.uid == resource.data.studentId || isTeacher()
-      );
-
-      // Student can remove their registration before event starts
-      allow delete: if isAuthenticated()
-                    && request.auth.uid == resource.data.studentId;
+                    && sameCollege(request.resource.data.collegeCode);
+      allow update: if isSignedIn() && sameCollege(resource.data.collegeCode)
+                    && (request.auth.uid == resource.data.studentId || isFaculty());
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.studentId;
     }
 
-    // ===============================================================
-    // ATTENDANCE RECORDS RULES
-    // ===============================================================
     match /attendanceRecords/{recordId} {
-      // Privacy protection: Student can only view their own attendance records.
-      // Teachers can view event attendance.
-      allow read: if isAuthenticated() && (
-        resource.data.studentId == request.auth.uid || isTeacher()
-      );
-      allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
-      allow update, delete: if isTeacher();
-    }
-
-    match /attendance_records/{recordId} {
-      allow read: if isAuthenticated() && (
-        resource.data.studentId == request.auth.uid || isTeacher()
-      );
-      allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
-      allow update, delete: if isTeacher();
+      allow read: if isSignedIn() && (resource.data.studentId == request.auth.uid || (isFaculty() && sameCollege(resource.data.collegeCode)));
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isFaculty() && sameCollege(resource.data.collegeCode);
     }
   }
 }

@@ -1,8 +1,7 @@
 import React from 'react';
-import { CheckCircle2, Radio, QrCode, Calendar, Shield, Clock } from 'lucide-react';
-import { RECENT_ACTIVITIES } from '../../data/sampleStudents';
+import { CheckCircle2, Radio, QrCode, Calendar, Clock } from 'lucide-react';
 
-export const RecentActivity = ({ activities = RECENT_ACTIVITIES, title = 'Recent Activity & Geofence Logs' }) => {
+export const RecentActivity = ({ activities = [], title = 'Recent Activity' }) => {
   const getIcon = (type) => {
     switch (type) {
       case 'check_in':
@@ -19,43 +18,34 @@ export const RecentActivity = ({ activities = RECENT_ACTIVITIES, title = 'Recent
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-card">
+    <div className="bg-white dark:bg-navy-900 rounded-3xl p-6 border border-slate-200/80 dark:border-navy-800 shadow-card">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-bold text-navy-900">{title}</h3>
-          <p className="text-xs text-slate-500">Real-time session updates</p>
+          <h3 className="text-base font-bold text-navy-900 dark:text-white">{title}</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Your session activity</p>
         </div>
-        <span className="text-[11px] font-semibold text-cyan-700 bg-cyan-50 px-2.5 py-0.5 rounded-full border border-cyan-100">
-          Live Stream
-        </span>
       </div>
 
-      <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-        {activities.map((item) => (
-          <div key={item.id} className="relative group">
-            {/* Timeline node */}
-            <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white border-2 border-slate-200 group-hover:border-cyan-500 flex items-center justify-center transition-colors">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 group-hover:bg-cyan-500"></span>
-            </div>
-
-            <div className="bg-slate-50/70 group-hover:bg-cyan-50/30 p-3.5 rounded-2xl border border-slate-100 group-hover:border-cyan-100 transition-all">
-              <div className="flex items-start justify-between gap-2">
+      {activities.length === 0 ? (
+        <div className="py-8 text-center text-xs text-slate-500 dark:text-slate-400">
+          No activity yet. Share your live location or join a college event to see updates here.
+        </div>
+      ) : (
+        <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100 dark:before:bg-navy-800">
+          {activities.map((item) => (
+            <div key={item.id} className="relative">
+              <div className="bg-slate-50 dark:bg-navy-800/70 p-3.5 rounded-2xl border border-slate-100 dark:border-navy-700">
                 <div className="flex items-center gap-2">
                   {getIcon(item.type)}
-                  <h4 className="text-xs font-bold text-navy-900">{item.title}</h4>
+                  <h4 className="text-xs font-bold text-navy-900 dark:text-white">{item.title}</h4>
                 </div>
-                {item.badge && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-slate-700 border border-slate-200">
-                    {item.badge}
-                  </span>
-                )}
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{item.description}</p>
+                <span className="text-[10px] text-slate-400 mt-1 block">{item.timestamp}</span>
               </div>
-              <p className="text-xs text-slate-600 mt-1">{item.description}</p>
-              <span className="text-[10px] text-slate-400 mt-2 block font-medium">{item.timestamp}</span>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

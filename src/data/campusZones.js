@@ -1,108 +1,34 @@
 /**
- * CLIDGE Campus Geofenced Zones & Landmarks
- * Calibrated specifically for Muthayammal Engineering College (Autonomous), Rasipuram.
- * Coordinates are based on real-world GNSS satellite mapping of the MEC campus layout.
+ * CLIDGE Campus Location & Zone Matching Utilities
+ * A brand-new college always starts with ZERO default or fake zones.
+ * Faculty define real campus zones (Hostel, Canteen, Library, Classrooms, etc.)
+ * directly on the interactive satellite map or using their live GPS position.
  */
-export const CAMPUS_ZONES = [
-  {
-    id: 'zone-auditorium',
-    name: 'Main Auditorium (Kamarajar Hall)',
-    building: 'Admin & Central Block',
-    code: 'ZONE-A1',
-    center: { lat: 11.4448, lng: 78.2263 },
-    radiusMeters: 65,
-    capacity: 650,
-    type: 'Auditorium',
-    color: '#06b6d4' // Cyan
-  },
-  {
-    id: 'zone-cse-seminar',
-    name: 'CSE Department Seminar Hall (Hall 302)',
-    building: 'CS & IT Academic Block',
-    code: 'ZONE-C2',
-    center: { lat: 11.4452, lng: 78.2267 },
-    radiusMeters: 45,
-    capacity: 180,
-    type: 'Seminar Hall',
-    color: '#3b82f6' // Blue
-  },
-  {
-    id: 'zone-canteen',
-    name: 'Campus Canteen & Food Court',
-    building: 'Student Amenities Block',
-    code: 'ZONE-F1',
-    center: { lat: 11.4447, lng: 78.2260 },
-    radiusMeters: 50,
-    capacity: 300,
-    type: 'Cafeteria / Canteen',
-    color: '#f97316' // Orange
-  },
-  {
-    id: 'zone-hostel',
-    name: 'Student Hostels (Boys & Girls Blocks)',
-    building: 'Residential Campus Zone',
-    code: 'ZONE-H1',
-    center: { lat: 11.4456, lng: 78.2272 },
-    radiusMeters: 80,
-    capacity: 500,
-    type: 'Student Hostel',
-    color: '#ec4899' // Pink
-  },
-  {
-    id: 'zone-tech-park',
-    name: 'Advanced Computing Lab & Tech Park',
-    building: 'Innovation Hub Block 4',
-    code: 'ZONE-T3',
-    center: { lat: 11.4451, lng: 78.2265 },
-    radiusMeters: 55,
-    capacity: 120,
-    type: 'Laboratory',
-    color: '#10b981' // Emerald
-  },
-  {
-    id: 'zone-library',
-    name: 'Central Library & Digital Arena',
-    building: 'Knowledge Center',
-    code: 'ZONE-L1',
-    center: { lat: 11.4449, lng: 78.2262 },
-    radiusMeters: 50,
-    capacity: 250,
-    type: 'Library',
-    color: '#f59e0b' // Amber
-  },
-  {
-    id: 'zone-sports',
-    name: 'Indoor Sports & Ground Complex',
-    building: 'Recreation Ground',
-    code: 'ZONE-S1',
-    center: { lat: 11.4442, lng: 78.2255 },
-    radiusMeters: 85,
-    capacity: 400,
-    type: 'Sports Complex',
-    color: '#8b5cf6' // Violet
-  }
-];
 
-export const CAMPUS_METRICS = {
-  institution: 'Muthayammal Engineering College (Autonomous)',
-  location: 'Rasipuram, Namakkal District, Tamil Nadu',
-  campusCenter: { lat: 11.4450, lng: 78.2264 },
-  campusRadiusMeters: 850,
-  gpsSamplingIntervalSeconds: 15,
-  lastCalibration: 'Real Satellite GNSS Coordinates Active',
-  geofencePrecision: 'High-Accuracy Mobile GPS / GNSS Hardware (± 3.5m)'
-};
+export const CAMPUS_ZONES = [];
 
 /**
  * Great-circle Haversine distance in meters
  */
 export const calculateHaversineMeters = (lat1, lon1, lat2, lon2) => {
-  if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined) return null;
-  const R = 6371000; // meters
-  const phi1 = (lat1 * Math.PI) / 180;
-  const phi2 = (lat2 * Math.PI) / 180;
-  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+  if (
+    lat1 === undefined || lon1 === undefined ||
+    lat2 === undefined || lon2 === undefined ||
+    lat1 === null || lon1 === null || lat2 === null || lon2 === null
+  ) {
+    return null;
+  }
+  const nLat1 = Number(lat1);
+  const nLon1 = Number(lon1);
+  const nLat2 = Number(lat2);
+  const nLon2 = Number(lon2);
+  if ([nLat1, nLon1, nLat2, nLon2].some(Number.isNaN)) return null;
+
+  const R = 6371000;
+  const phi1 = (nLat1 * Math.PI) / 180;
+  const phi2 = (nLat2 * Math.PI) / 180;
+  const deltaPhi = ((nLat2 - nLat1) * Math.PI) / 180;
+  const deltaLambda = ((nLon2 - nLon1) * Math.PI) / 180;
 
   const a =
     Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
@@ -112,74 +38,62 @@ export const calculateHaversineMeters = (lat1, lon1, lat2, lon2) => {
 };
 
 /**
- * Real-time campus landmark resolution for Muthayammal Engineering College
- * Accurately determines if student is at Canteen, Hostel, Auditorium, Labs, Library, Sports, or Campus Ground.
+ * Finds the nearest college zone ONLY if (lat, lng) is strictly within zone.radius meters.
+ * Never returns a zone name if the student is outside every zone's radius.
  */
-export const getCampusLandmark = (lat, lng) => {
-  if (!lat || !lng) {
-    return {
-      landmark: 'Detecting Location...',
-      code: 'LOC-ACQUIRING',
-      building: 'Acquiring GPS...',
-      isInside: false,
-      distanceMeters: null,
-      color: '#94a3b8'
-    };
-  }
+export const matchCampusZone = (lat, lng, zones = []) => {
+  if (!Array.isArray(zones) || zones.length === 0) return null;
+  let bestMatch = null;
+  let bestDist = Infinity;
 
-  // 1. Check if inside any calibrated campus zone
-  for (const zone of CAMPUS_ZONES) {
-    const dist = calculateHaversineMeters(lat, lng, zone.center.lat, zone.center.lng);
-    if (dist !== null && dist <= zone.radiusMeters) {
-      return {
-        landmark: zone.name,
-        code: zone.code,
-        building: zone.building,
-        type: zone.type,
-        color: zone.color,
+  for (const zone of zones) {
+    const zLat = Number(zone.latitude ?? zone.center?.lat);
+    const zLng = Number(zone.longitude ?? zone.center?.lng);
+    const zRadius = Number(zone.radius ?? zone.radiusMeters ?? 60);
+    const dist = calculateHaversineMeters(lat, lng, zLat, zLng);
+    if (dist !== null && dist <= zRadius && dist < bestDist) {
+      bestDist = dist;
+      bestMatch = {
+        ...zone,
         distanceMeters: Math.round(dist),
-        isInside: true,
-        zone
+        radius: zRadius
       };
     }
   }
 
-  // 2. Find closest zone
-  let closestZone = CAMPUS_ZONES[0];
-  let minDistance = Infinity;
-  for (const zone of CAMPUS_ZONES) {
-    const dist = calculateHaversineMeters(lat, lng, zone.center.lat, zone.center.lng);
-    if (dist !== null && dist < minDistance) {
-      minDistance = dist;
-      closestZone = zone;
-    }
-  }
+  return bestMatch;
+};
 
-  // 3. Check if within overall MEC Campus perimeter (850m radius)
-  const distToCenter = calculateHaversineMeters(lat, lng, CAMPUS_METRICS.campusCenter.lat, CAMPUS_METRICS.campusCenter.lng);
-  if (distToCenter !== null && distToCenter <= CAMPUS_METRICS.campusRadiusMeters) {
+/**
+ * Resolves a coordinate against the college's configured zones.
+ * If inside a zone's radius, returns the zone name.
+ * Otherwise returns isInside: false so callers display the Nominatim street address.
+ */
+export const getCampusLandmark = (lat, lng, zones = []) => {
+  if (lat === undefined || lng === undefined || lat === null || lng === null) {
     return {
-      landmark: `MEC Campus (near ${closestZone.name.split(' (')[0]})`,
-      code: 'MEC-CAMPUS',
-      building: 'Muthayammal Campus Grounds',
-      type: 'Campus Area',
-      color: '#0ea5e9',
-      distanceMeters: Math.round(minDistance),
+      landmark: 'Waiting for GPS...',
       isInside: false,
-      isCampus: true,
-      closestZone
+      distanceMeters: null,
+      zone: null
     };
   }
 
-  // 4. Off-campus (Rasipuram / Surrounding area)
+  const matched = matchCampusZone(lat, lng, zones);
+  if (matched) {
+    return {
+      landmark: matched.name,
+      isInside: true,
+      distanceMeters: matched.distanceMeters,
+      color: matched.color || '#06b6d4',
+      zone: matched
+    };
+  }
+
   return {
-    landmark: `Off-Campus (${(distToCenter / 1000).toFixed(1)} km from MEC)`,
-    code: 'OFF-CAMPUS',
-    building: 'Rasipuram Outskirts',
-    type: 'Off-Campus',
-    color: '#f43f5e',
-    distanceMeters: Math.round(distToCenter),
+    landmark: null,
     isInside: false,
-    isCampus: false
+    distanceMeters: null,
+    zone: null
   };
 };
