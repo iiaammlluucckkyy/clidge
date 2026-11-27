@@ -16,12 +16,12 @@
  * ============================================================================
  */
 export const PASTED_FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyBKAxB4fN8-RcB4iPkrglb56-3Vg3MNyvM",
+  authDomain: "clidge-827ab.firebaseapp.com",
+  projectId: "clidge-827ab",
+  storageBucket: "clidge-827ab.firebasestorage.app",
+  messagingSenderId: "193612065259",
+  appId: "1:193612065259:web:7ef29c726d46b33ac091ae"
 };
 
 // Faculty Access Key (app owner can change this secret key so strangers cannot create faculty accounts)
